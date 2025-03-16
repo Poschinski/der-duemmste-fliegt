@@ -1,13 +1,18 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import { StartGame } from "~/startGame/startGame";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Der dümmste fliegt!" },
+    { name: "very nice game", content: "Hier spielen wir das tolle Spiel 'Der dümmste fliegt'." },
   ];
 }
 
 export default function Home() {
-  return <Welcome />;
+  return (
+    <div className="flex justify-center mt-16">
+      <StartGame />
+
+    </div>
+  );
 }
