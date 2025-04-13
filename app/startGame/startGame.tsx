@@ -39,19 +39,6 @@ export function StartGame() {
       </p>
       <div className="flex flex-row justify-between gap-10">
         <div className="grow">
-          <Label htmlFor="rounds">Rundenanzahl</Label>
-          <Input
-            id="rounds"
-            type="number"
-            placeholder="Rundenanzahl"
-            min="0"
-            defaultValue={3}
-            onChange={(e) => {
-              setSettings({...settings, rounds: Number(e.target.value) });
-            }}
-          />
-        </div>
-        <div className="grow">
           <Label htmlFor="roundTime">Zeit pro Runde (Sekunden)</Label>
           <Input
             id="roundTime"

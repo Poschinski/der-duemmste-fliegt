@@ -7,7 +7,6 @@ export type Player = {
 export type Game = {
     players?: Player[];
     roundTime?: number;
-    rounds?: number;
 }
 
 export type Question = {

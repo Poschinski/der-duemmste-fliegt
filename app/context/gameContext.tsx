@@ -6,10 +6,10 @@ interface GameContextType {
     setSettings: React.Dispatch<React.SetStateAction<Game | null>>;
 }
 
-export const GameContext = createContext<GameContextType>({settings: {rounds: 3, roundTime: 10}, setSettings: () => {}});
+export const GameContext = createContext<GameContextType>({settings: {roundTime: 180}, setSettings: () => {}});
 
 export function GameProvider({children}: {children: React.ReactNode}) {
-    const [settings, setSettings] = useState<Game | null>({rounds: 3, roundTime: 10}); 
+    const [settings, setSettings] = useState<Game | null>({roundTime: 180}); 
     useEffect(() => {
         console.log(settings);
     }

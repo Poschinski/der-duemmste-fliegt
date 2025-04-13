@@ -1,5 +1,6 @@
 import { questions } from "data/questions";
 import { useEffect, useState } from "react";
+import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import { useGame } from "~/context/gameContext";
 import type { Player, Question } from "~/models/game.model";
@@ -13,25 +14,10 @@ export default function Game() {
     questions[Math.floor(Math.random() * questions.length)] || null
   );
   const [timeLeft, setTimeLeft] = useState<number>(settings?.roundTime || 180);
-  const [round, setRound] = useState<number>(1);
   const [votingPhase, setVotingPhase] = useState<boolean>(false);
+  const [usedQuestions, setUsedQuestions] = useState<number[]>([]);
 
   const playerCount = settings?.players?.length || 0;
-
-  const handleNextQuestion = () => {
-    const playerIndex =
-      settings?.players?.findIndex((p) => p.id === currentPlayer?.id) || 0;
-    let nextPlayerIndex = playerIndex + 1;
-    if (nextPlayerIndex >= playerCount) {
-      nextPlayerIndex = 0;
-    }
-    const nextPlayer = settings?.players?.[nextPlayerIndex] || null;
-    const nextQuestion =
-      questions[Math.floor(Math.random() * questions.length)] || null;
-
-    setCurrentPlayer(nextPlayer);
-    setCurrentQuestion(nextQuestion);
-  };
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -40,50 +26,117 @@ export default function Game() {
     }, 1000);
   }, [timeLeft]);
 
+  const handleNextQuestion = () => {
+    chooseNextPlayer();
+    chooseNextQuestion();
+  };
+
+  const handleVotingPhase = (player: Player) => {
+    if (!settings) return;
+    setSettings({
+      ...settings,
+      players: settings.players
+        ? settings.players.map((p) =>
+            p.id === player.id ? { ...p, lives: p.lives - 1 } : p
+          )
+        : [],
+    });
+    setVotingPhase(false);
+    setTimeLeft(settings.roundTime || 180);
+    chooseNextQuestion();
+    chooseNextPlayer();
+  };
+
+  const chooseNextPlayer = () => {
+    const playerIndex =
+      settings?.players?.findIndex((p) => p.id === currentPlayer?.id) || 0;
+    let nextPlayerIndex = playerIndex + 1;
+    if (nextPlayerIndex >= playerCount) {
+      nextPlayerIndex = 0;
+    }
+    let nextPlayer = settings?.players?.[nextPlayerIndex] || null;
+    while (nextPlayer && nextPlayer.lives === 0) {
+      nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
+      nextPlayer = settings?.players?.[nextPlayerIndex] || null;
+    }
+    setCurrentPlayer(nextPlayer);
+  };
+
+  const chooseNextQuestion = () => {
+    let nextQuestoinIndex = Math.floor(Math.random() * questions.length);
+    while (usedQuestions.includes(nextQuestoinIndex)) {
+      nextQuestoinIndex = Math.floor(Math.random() * questions.length);
+    }
+    setUsedQuestions([...usedQuestions, nextQuestoinIndex]);
+    const nextQuestion =
+      questions[nextQuestoinIndex] || null;
+    setCurrentQuestion(nextQuestion);
+  };
+
   return (
-    <div>
-      {votingPhase ? (
-        <div className="flex flex-col gap-4">
+    <div className="flex justify-center mt-32">
+      <div className="flex flex-col gap-4 w-3xl justify-center">
+        {votingPhase ? (
+          <div className="grid grid-cols-2 gap-2">
+            {settings?.players &&
+              settings.players.length > 0 &&
+              settings.players.map((player: Player, index: number) => (
+                <Button
+                  key={index}
+                  disabled={player.lives === 0}
+                  onClick={() => {
+                    handleVotingPhase(player);
+                  }}
+                >
+                  {player.name}
+                </Button>
+              ))}
+          </div>
+        ) : (
+          <div>
+            <p>Timer: {timeLeft}</p>
+            {currentPlayer && currentQuestion ? (
+              <div className="flex flex-col gap-2 my-4">
+                <p>
+                  <span className="font-bold">{currentPlayer.name}</span>, {currentQuestion.question}
+                </p>
+                <div>
+                  <p><span className="font-bold">Antwort:</span> {currentQuestion.answer}</p>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p>Kein Spieler oder keine Frage gefunden</p>
+              </div>
+            )}
+
+            <div className="flex justify-between gap-4">
+              <Button
+                disabled={timeLeft <= 0}
+                onClick={() => {
+                  const player = settings?.players?.find((p) => p.id === 1);
+                  handleNextQuestion();
+                }}
+              >
+                Nächse Frage
+              </Button>
+              <Button
+                disabled={timeLeft > 0}
+                onClick={() => setVotingPhase(true)}
+              >
+                Nächste Runde
+              </Button>
+            </div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
           {settings?.players &&
             settings.players.length > 0 &&
             settings.players.map((player: Player, index: number) => (
-              <Button key={index}> {player.name}</Button>
+              <PlayerStats key={index} {...player} />
             ))}
         </div>
-      ) : (
-        <div>
-          <p>{timeLeft}</p>
-          {currentPlayer && currentQuestion ? (
-            <div>
-              <p>
-                {currentPlayer.name}, {currentQuestion.question}
-              </p>
-              <div>
-                <p>Antwort: {currentQuestion.answer}</p>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p>Kein Spieler oder keine Frage gefunden</p>
-            </div>
-          )}
-
-          <div>
-            <Button
-            disabled={timeLeft <= 0}
-              onClick={() => {
-                const player = settings?.players?.find((p) => p.id === 1);
-                handleNextQuestion();
-              }}
-            >
-              Nächse Frage
-            </Button>
-            <Button disabled={timeLeft > 0} onClick={() => setVotingPhase(true)}>
-                Nächste Runde
-            </Button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
