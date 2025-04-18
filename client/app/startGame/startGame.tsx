@@ -17,25 +17,25 @@ export function StartGame() {
 
   const handleAddPlayer = (name: string) => {
     setSettings({
-        ...settings,
-        players: [
-          ...(settings?.players || []),
-          {
-            id: settings?.players ? settings.players.length + 1 : 1,
-            name: name,
-            lives: 3,
-          },
-        ],
-      });
-  }
+      ...settings,
+      players: [
+        ...(settings?.players || []),
+        {
+          id: settings?.players ? settings.players.length + 1 : 1,
+          name: name,
+          lives: 3,
+        },
+      ],
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4 w-3xl justify-center">
       <h3 className="text-2xl">Wilkommen zu</h3>
       <h1 className="text-4xl bg-amber-300 mb-2">Der Dümmste fliegt!</h1>
       <p>
-        Gib hier die Namen der Mitspieler ein und lege die
-        die Leben pro Spieler fest.
+        Gib hier die Namen der Mitspieler ein und lege die die Leben pro Spieler
+        fest.
       </p>
       <div className="flex flex-row justify-between gap-10">
         <div className="grow">
@@ -47,12 +47,23 @@ export function StartGame() {
             min={0}
             defaultValue={3}
             onChange={(e) => {
-              setSettings({...settings, roundTime: Number(e.target.value) });
+              setSettings({ ...settings, roundTime: Number(e.target.value) });
             }}
           />
         </div>
       </div>
+      <div>
+        <p>
+          Schicke den Lobbycode deinen Freunden damit sie beitreten können
+          oder schicke ihnen direkt einen Einladungslink.
+        </p>
+        <p>Lobbycode: </p>
+        <Button>Einladungslink kopieren</Button>
+      </div>
       <div className="flex flex-col gap-2">
+        <p>Spieler:</p>
+      </div>
+      {/* <div className="flex flex-col gap-2">
         <Label htmlFor="playerInput">Spielernamen (Enter zum hinzufügen)</Label>
         <Input
           id="playerInput"
@@ -72,7 +83,7 @@ export function StartGame() {
           ))
         )}
         
-      </div>
+      </div> */}
       <Button onClick={startGame}>Spiel starten</Button>
     </div>
   );
