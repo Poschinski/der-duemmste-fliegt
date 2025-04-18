@@ -31,21 +31,21 @@ export function StartGame() {
 
   return (
     <div className="flex flex-col gap-4 w-3xl justify-center">
-      <h3>Wilkommen zu</h3>
-      <h1>Der dümmste fliegt!</h1>
+      <h3 className="text-2xl">Wilkommen zu</h3>
+      <h1 className="text-4xl bg-amber-300 mb-2">Der Dümmste fliegt!</h1>
       <p>
-        Gib hier die Namen der Mitspieler ein und lege die Anzahl der Runden,
-        die Leben pro Spieler sowie die Zeit pro Runde fest.
+        Gib hier die Namen der Mitspieler ein und lege die
+        die Leben pro Spieler fest.
       </p>
       <div className="flex flex-row justify-between gap-10">
         <div className="grow">
-          <Label htmlFor="roundTime">Zeit pro Runde (Sekunden)</Label>
+          <Label htmlFor="roundTime">Leben pro Spieler</Label>
           <Input
             id="roundTime"
             type="number"
             placeholder="Zeit pro Runde"
             min={0}
-            defaultValue={180}
+            defaultValue={3}
             onChange={(e) => {
               setSettings({...settings, roundTime: Number(e.target.value) });
             }}
@@ -53,7 +53,7 @@ export function StartGame() {
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="playerInput">Spielernamen</Label>
+        <Label htmlFor="playerInput">Spielernamen (Enter zum hinzufügen)</Label>
         <Input
           id="playerInput"
           placeholder={`Spieler ${
