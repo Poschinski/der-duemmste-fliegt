@@ -1,22 +1,28 @@
 import { Label } from "@radix-ui/react-label";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { PlayerContainer } from "~/components/playerContainer";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useGame } from "~/context/gameContext";
 import type { Player } from "~/models/game.model";
-import socket from "~/services/socket";
+import socket from "~/socket";
 
 export function StartGame() {
+  const {state} = useLocation();
+  const { moderatorId } = state as { moderatorId: string } || {};
   const { settings, setSettings } = useGame();
   const [gameId, setGameId] = useState("");
   const navigate = useNavigate();
   const [isModerator, setIsModerator] = useState(false);
 
   useEffect(() => {
-    const modFlag = localStorage.getItem("isModerator") === "true";
-    setIsModerator(modFlag);
+    let userId = socket.id;
+
+    if (moderatorId === userId) {
+      setIsModerator(true);
+    }
+
   }, []);
 
   let params = useParams();
@@ -29,8 +35,6 @@ export function StartGame() {
   const startGame = () => {
     navigate(`/game/${gameId}`);
   };
-
-
 
   // const handleAddPlayer = (name: string) => {
   //   setSettings({
