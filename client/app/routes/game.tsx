@@ -1,5 +1,6 @@
 import { questions } from "data/questions";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import { useGame } from "~/context/gameContext";
@@ -16,8 +17,17 @@ export default function Game() {
   const [timeLeft, setTimeLeft] = useState<number>(settings?.roundTime || 180);
   const [votingPhase, setVotingPhase] = useState<boolean>(false);
   const [usedQuestions, setUsedQuestions] = useState<number[]>([]);
+  const [gameId, setGameId] = useState<string>("000000");
+
+  let params = useParams();
+  useEffect(() => {
+    if (params.gameId) {
+      setGameId(params.gameId);
+    }
+  }, []);
 
   const playerCount = settings?.players?.length || 0;
+  const isModerator = localStorage.getItem("isModerator") === "true";
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -68,75 +78,65 @@ export default function Game() {
       nextQuestoinIndex = Math.floor(Math.random() * questions.length);
     }
     setUsedQuestions([...usedQuestions, nextQuestoinIndex]);
-    const nextQuestion =
-      questions[nextQuestoinIndex] || null;
+    const nextQuestion = questions[nextQuestoinIndex] || null;
     setCurrentQuestion(nextQuestion);
   };
 
   return (
     <div className="flex justify-center mt-32">
-      <div className="flex flex-col gap-4 w-3xl justify-center">
-        {votingPhase ? (
-          <div className="grid grid-cols-2 gap-2">
+      {currentPlayer && currentQuestion ? (
+        <div className="flex flex-col gap-4 w-3xl justify-center">
+          <div>
             {settings?.players &&
               settings.players.length > 0 &&
               settings.players.map((player: Player, index: number) => (
-                <Button
-                  key={index}
-                  disabled={player.lives === 0}
-                  onClick={() => {
-                    handleVotingPhase(player);
-                  }}
-                >
-                  {player.name}
-                </Button>
+                <PlayerStats key={index} {...player} />
               ))}
           </div>
-        ) : (
-          <div>
-            <p>Timer: {timeLeft}</p>
-            {currentPlayer && currentQuestion ? (
-              <div className="flex flex-col gap-2 my-4">
-                <p>
-                  <span className="font-bold">{currentPlayer.name}</span>, {currentQuestion.question}
-                </p>
-                <div>
-                  <p><span className="font-bold">Antwort:</span> {currentQuestion.answer}</p>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p>Kein Spieler oder keine Frage gefunden</p>
-              </div>
-            )}
-
-            <div className="flex justify-between gap-4">
-              <Button
-                disabled={timeLeft <= 0}
-                onClick={() => {
-                  const player = settings?.players?.find((p) => p.id === 1);
-                  handleNextQuestion();
-                }}
-              >
-                Nächse Frage
-              </Button>
-              <Button
-                disabled={timeLeft > 0}
-                onClick={() => setVotingPhase(true)}
-              >
-                Nächste Runde
-              </Button>
-            </div>
+          <p>Timer: {timeLeft}</p>
+          <div className="flex flex-col gap-2 my-4">
+            <p>
+              <span className="font-bold">{currentPlayer.name}</span>,{" "}
+              {currentQuestion.question}
+            </p>
           </div>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          {settings?.players &&
-            settings.players.length > 0 &&
-            settings.players.map((player: Player, index: number) => (
-              <PlayerStats key={index} {...player} />
-            ))}
+          {isModerator ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p>
+                  <span className="font-bold">Antwort:</span>{" "}
+                  {currentQuestion.answer}
+                </p>
+              </div>
+              <div className="flex justify-between gap-4">
+                <Button
+                  disabled={timeLeft <= 0}
+                  onClick={() => {
+                    const player = settings?.players?.find((p) => p.id === 1);
+                    handleNextQuestion();
+                  }}
+                >
+                  Nächse Frage
+                </Button>
+                <Button
+                  disabled={timeLeft > 0}
+                  onClick={() => setVotingPhase(true)}
+                >
+                  Nächste Runde
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p>Hallo Spieler</p>
+            </div>
+          )}
         </div>
-      </div>
+      ) : (
+        <div>
+          <p>Kein Spieler oder keine Frage gefunden</p>
+        </div>
+      )}
     </div>
   );
 }

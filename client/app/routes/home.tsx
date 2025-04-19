@@ -5,6 +5,7 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { useNavigate } from "react-router";
 import { useState } from "react";
+import socket from "~/services/socket";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,6 +20,21 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
   const navigate = useNavigate();
     const [gameId, setGameId] = useState<string>("");
+
+    const startGame = () => {
+      let tempGameId: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        tempGameId.push(Math.floor(Math.random() * 10));
+      }
+      const newGameId = tempGameId.join("");
+
+      socket.emit("join_lobby", newGameId)
+  
+      localStorage.setItem("isModerator", "true");
+
+      navigate(`/lobby/${newGameId}`);
+    }
+    
   return (
     <div className="flex justify-center mt-16">
     <div className="flex flex-col justify-center w-3xl">
@@ -28,7 +44,7 @@ export default function Home() {
       <p>Als Ersteller bist du automatisch </p>
       <div className="flex justify-center mt-4 gap-4 flex-col">
         <div>
-          <Button className="w-full" onClick={() => navigate("/createGame")}>
+          <Button className="w-full" onClick={() => startGame()}>
             Neues Spiel
           </Button>
         </div>

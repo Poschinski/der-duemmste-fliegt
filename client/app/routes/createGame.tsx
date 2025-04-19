@@ -10,7 +10,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function CreateGame() {
   return (
-    <div className="flex justify-center mt-16">
+    <div className="flex justify-center mt-20">
       <StartGame />
 
     </div>

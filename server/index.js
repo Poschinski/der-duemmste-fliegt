@@ -21,6 +21,10 @@ io.on("connection", (socket) => {
     socket.on("join_lobby", (data) => {
       socket.join(data);
     });
+
+    socket.on("game_state", (data) => {
+      socket.to(data.room).emit("receive_game_state", data);
+    });
   
     socket.on("update_player_data", (data) => {
       socket.to(data.room).emit("receive_player_data", data);
