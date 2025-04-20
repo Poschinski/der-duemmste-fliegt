@@ -2,20 +2,20 @@ import { createContext, use, useContext, useEffect, useState} from "react";
 import type { Game, Player } from "~/models/game.model";
 
 interface GameContextType {
-    settings: Game | null;
-    setSettings: React.Dispatch<React.SetStateAction<Game | null>>;
+    lobbyState: Game | null;
+    setLobbyState: React.Dispatch<React.SetStateAction<Game | null>>;
 }
 
-export const GameContext = createContext<GameContextType>({settings: {roundTime: 180}, setSettings: () => {}});
+export const GameContext = createContext<GameContextType>({lobbyState: {settings: { roundTime: 180, maxLives: 3}} , setLobbyState: () => {}});
 
 export function GameProvider({children}: {children: React.ReactNode}) {
-    const [settings, setSettings] = useState<Game | null>({roundTime: 180}); 
+    const [lobbyState, setLobbyState] = useState<Game | null>({ settings:{ roundTime: 180, maxLives: 3}}); 
     useEffect(() => {
-        console.log(settings);
+        console.log(lobbyState);
     }
-    , [settings])
+    , [lobbyState])
     return (
-        <GameContext.Provider value={{settings, setSettings}}>
+        <GameContext.Provider value={{lobbyState, setLobbyState}}>
             {children}
         </GameContext.Provider>
     )

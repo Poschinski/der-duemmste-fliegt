@@ -7,14 +7,14 @@ import { useGame } from "~/context/gameContext";
 import type { Player, Question } from "~/models/game.model";
 
 export default function Game() {
-  const { settings, setSettings } = useGame();
+  const { lobbyState, setLobbyState } = useGame();
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(
-    settings?.players?.[0] || null
+    lobbyState?.players?.[0] || null
   );
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(
     questions[Math.floor(Math.random() * questions.length)] || null
   );
-  const [timeLeft, setTimeLeft] = useState<number>(settings?.roundTime || 180);
+  const [timeLeft, setTimeLeft] = useState<number>(lobbyState?.settings.roundTime || 180);
   const [votingPhase, setVotingPhase] = useState<boolean>(false);
   const [usedQuestions, setUsedQuestions] = useState<number[]>([]);
   const [gameId, setGameId] = useState<string>("000000");
@@ -26,7 +26,7 @@ export default function Game() {
     }
   }, []);
 
-  const playerCount = settings?.players?.length || 0;
+  const playerCount = lobbyState?.players?.length || 0;
   const isModerator = localStorage.getItem("isModerator") === "true";
 
   useEffect(() => {
@@ -42,32 +42,32 @@ export default function Game() {
   };
 
   const handleVotingPhase = (player: Player) => {
-    if (!settings) return;
-    setSettings({
-      ...settings,
-      players: settings.players
-        ? settings.players.map((p) =>
+    if (!lobbyState) return;
+    setLobbyState({
+      ...lobbyState,
+      players: lobbyState.players
+        ? lobbyState.players.map((p) =>
             p.id === player.id ? { ...p, lives: p.lives - 1 } : p
           )
         : [],
     });
     setVotingPhase(false);
-    setTimeLeft(settings.roundTime || 180);
+    setTimeLeft(lobbyState.settings.roundTime || 180);
     chooseNextQuestion();
     chooseNextPlayer();
   };
 
   const chooseNextPlayer = () => {
     const playerIndex =
-      settings?.players?.findIndex((p) => p.id === currentPlayer?.id) || 0;
+      lobbyState?.players?.findIndex((p) => p.id === currentPlayer?.id) || 0;
     let nextPlayerIndex = playerIndex + 1;
     if (nextPlayerIndex >= playerCount) {
       nextPlayerIndex = 0;
     }
-    let nextPlayer = settings?.players?.[nextPlayerIndex] || null;
+    let nextPlayer = lobbyState?.players?.[nextPlayerIndex] || null;
     while (nextPlayer && nextPlayer.lives === 0) {
       nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
-      nextPlayer = settings?.players?.[nextPlayerIndex] || null;
+      nextPlayer = lobbyState?.players?.[nextPlayerIndex] || null;
     }
     setCurrentPlayer(nextPlayer);
   };
@@ -87,9 +87,9 @@ export default function Game() {
       {currentPlayer && currentQuestion ? (
         <div className="flex flex-col gap-4 w-3xl justify-center">
           <div>
-            {settings?.players &&
-              settings.players.length > 0 &&
-              settings.players.map((player: Player, index: number) => (
+            {lobbyState?.players &&
+              lobbyState.players.length > 0 &&
+              lobbyState.players.map((player: Player, index: number) => (
                 <PlayerStats key={index} {...player} />
               ))}
           </div>
@@ -112,7 +112,7 @@ export default function Game() {
                 <Button
                   disabled={timeLeft <= 0}
                   onClick={() => {
-                    const player = settings?.players?.find((p) => p.id === 1);
+                    const player = lobbyState?.players?.find((p) => p.id === 1);
                     handleNextQuestion();
                   }}
                 >

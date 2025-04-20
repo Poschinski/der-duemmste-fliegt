@@ -29,7 +29,7 @@ export default function Home() {
     }
     const newGameId = tempGameId.join("");
 
-    socket.emit("join_lobby", newGameId);
+    socket.emit("join_lobby", {lobbyId: newGameId, name: "Moderator", isMod: true});
 
     navigate(`/lobby/${newGameId}`, { state: { moderatorId: moderatorId } });
   };
@@ -57,7 +57,7 @@ export default function Home() {
               onChange={(event) => setGameId(event.target.value)}
             />
             <Button
-              onClick={() => navigate(`/game/${gameId}`)}
+              onClick={() => navigate(`/joinGame/${gameId}`)}
               disabled={gameId.length !== 6}
             >
               Spiel beitreten

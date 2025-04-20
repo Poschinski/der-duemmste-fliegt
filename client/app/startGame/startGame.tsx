@@ -2,53 +2,71 @@ import { Label } from "@radix-ui/react-label";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { PlayerContainer } from "~/components/playerContainer";
+import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useGame } from "~/context/gameContext";
-import type { Player } from "~/models/game.model";
+import type { Game, Player, Settings } from "~/models/game.model";
 import socket from "~/socket";
 
 export function StartGame() {
   const {state} = useLocation();
   const { moderatorId } = state as { moderatorId: string } || {};
-  const { settings, setSettings } = useGame();
+  // const { lobbyState, setLobbyState } = useGame();
+  const [ lobbyState, setLobbyState ] = useState<Game>();
+  const [settings, setSettings] = useState<Settings>( { roundTime: 180, maxLives: 3 });
   const [gameId, setGameId] = useState("");
   const navigate = useNavigate();
   const [isModerator, setIsModerator] = useState(false);
+  const params = useParams();
 
   useEffect(() => {
     let userId = socket.id;
-
     if (moderatorId === userId) {
       setIsModerator(true);
     }
-
-  }, []);
-
-  let params = useParams();
-  useEffect(() => {
     if (params.gameId) {
       setGameId(params.gameId);
     }
+    // console.log("Game ID:", params.gameId);
+    // socket.emit("get_game_state", {lobbyid: params.gameId});
+    // socket.on("receive_game_state", (gameState: Game) => {
+    //   console.log("Received game state:", gameState);
+    //   setLobbyState(gameState);
+    // });
   }, []);
+  
+  useEffect(() => {
+    if (!gameId) return;
+  
+    socket.emit("get_game_state", { lobbyId: gameId });
+  
+    const listener = (gameState: Game) => {
+      console.log("Received game state:", gameState);
+      setLobbyState(gameState);
+    };
+  
+    socket.on("receive_game_state", listener);
+  
+    return () => {
+      socket.off("receive_game_state", listener);
+    };
+  }, [gameId]);
+
+  useEffect(() => {
+    socket.on("receive_game_state", (gameState: Game) => {
+      console.log("Received game state:", gameState);
+      setLobbyState(gameState);
+    });
+  }), [socket, settings]
+
+  const handleSettingsChange = () => {
+    socket.emit("change_lobby_settings", {lobbyId: gameId, settings});
+  }
 
   const startGame = () => {
     navigate(`/game/${gameId}`);
   };
-
-  // const handleAddPlayer = (name: string) => {
-  //   setSettings({
-  //     ...settings,
-  //     players: [
-  //       ...(settings?.players || []),
-  //       {
-  //         id: settings?.players ? settings.players.length + 1 : 1,
-  //         name: name,
-  //         lives: 3,
-  //       },
-  //     ],
-  //   });
-  // };
 
   return (
     <div className="flex flex-col gap-4 w-3xl justify-center">
@@ -69,6 +87,7 @@ export function StartGame() {
             disabled={!isModerator}
             onChange={(e) => {
               setSettings({ ...settings, roundTime: Number(e.target.value) });
+              handleSettingsChange()
             }}
           />
           <Label htmlFor="playerLives">Leben pro Spieler</Label>
@@ -80,7 +99,7 @@ export function StartGame() {
             defaultValue={3}
             disabled={!isModerator}
             onChange={(e) => {
-              console.log(e.target.value);
+              setSettings({ ...settings, maxLives: Number(e.target.value) });
             }}
           />
         </div>
@@ -101,27 +120,15 @@ export function StartGame() {
       <div className="flex flex-col gap-2">
         <p>Spieler:</p>
       </div>
-      {/* <div className="flex flex-col gap-2">
-        <Label htmlFor="playerInput">Spielernamen (Enter zum hinzufügen)</Label>
-        <Input
-          id="playerInput"
-          placeholder={`Spieler ${
-            settings?.players ? settings.players.length + 1 : 1
-          }`}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleAddPlayer(e.currentTarget.value);
-              e.currentTarget.value = "";
-            }
-          }}
-        />
-        {settings?.players && settings.players.length > 0 && (
-          settings.players.map((player: Player, index: number) => (
-            <PlayerContainer key={index} {...player} />
+      <div className="flex flex-col gap-2">
+        {lobbyState?.players && lobbyState.players.length > 0 && (
+          lobbyState.players.map((player: Player, index: number) => (
+            !player.isMod && 
+            <PlayerStats key={index} {...player} />
           ))
         )}
         
-      </div> */}
+      </div>
       <Button onClick={startGame} disabled={!isModerator}>Spiel starten</Button>
     </div>
   );
