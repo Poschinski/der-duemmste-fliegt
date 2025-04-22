@@ -1,5 +1,5 @@
 export type Player = {
-    id: number;
+    id: string;
     name: string;
     lives: number;
     isMod: boolean;
