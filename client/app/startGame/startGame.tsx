@@ -1,20 +1,20 @@
 import { Label } from "@radix-ui/react-label";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { PlayerContainer } from "~/components/playerContainer";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { useGame } from "~/context/gameContext";
 import type { Game, Player, Settings } from "~/models/game.model";
 import socket from "~/socket";
 
 export function StartGame() {
-  const {state} = useLocation();
-  const { moderatorId } = state as { moderatorId: string } || {};
-  // const { lobbyState, setLobbyState } = useGame();
-  const [ lobbyState, setLobbyState ] = useState<Game>();
-  const [settings, setSettings] = useState<Settings>( { roundTime: 180, maxLives: 3 });
+  const { state } = useLocation();
+  const { moderatorId } = (state as { moderatorId: string }) || {};
+  const [lobbyState, setLobbyState] = useState<Game>();
+  const [settings, setSettings] = useState<Settings>({
+    roundTime: 180,
+    maxLives: 3,
+  });
   const [gameId, setGameId] = useState("");
   const navigate = useNavigate();
   const [isModerator, setIsModerator] = useState(false);
@@ -28,26 +28,20 @@ export function StartGame() {
     if (params.gameId) {
       setGameId(params.gameId);
     }
-    // console.log("Game ID:", params.gameId);
-    // socket.emit("get_game_state", {lobbyid: params.gameId});
-    // socket.on("receive_game_state", (gameState: Game) => {
-    //   console.log("Received game state:", gameState);
-    //   setLobbyState(gameState);
-    // });
   }, []);
-  
+
   useEffect(() => {
     if (!gameId) return;
-  
+
     socket.emit("get_game_state", { lobbyId: gameId });
-  
+
     const listener = (gameState: Game) => {
       console.log("Received game state:", gameState);
       setLobbyState(gameState);
     };
-  
+
     socket.on("receive_game_state", listener);
-  
+
     return () => {
       socket.off("receive_game_state", listener);
     };
@@ -58,14 +52,24 @@ export function StartGame() {
       console.log("Received game state:", gameState);
       setLobbyState(gameState);
     });
-  }), [socket, settings]
+
+    socket.on("navigate", () => {
+      if (isModerator) return;
+      navigate(`/game/${gameId}`);
+    });
+  }),
+    [socket, settings];
 
   const handleSettingsChange = () => {
-    socket.emit("change_lobby_settings", {lobbyId: gameId, settings});
-  }
+    socket.emit("change_lobby_settings", { lobbyId: gameId, settings });
+  };
 
   const startGame = () => {
-    navigate(`/game/${gameId}`);
+    if (isModerator) {
+      navigate(`/game/${gameId}`, { state: { moderatorId } });
+    } else {
+      socket.emit("navigate", { lobbyId: gameId });
+    }
   };
 
   return (
@@ -87,7 +91,7 @@ export function StartGame() {
             disabled={!isModerator}
             onChange={(e) => {
               setSettings({ ...settings, roundTime: Number(e.target.value) });
-              handleSettingsChange()
+              handleSettingsChange();
             }}
           />
           <Label htmlFor="playerLives">Leben pro Spieler</Label>
@@ -121,15 +125,16 @@ export function StartGame() {
         <p>Spieler:</p>
       </div>
       <div className="flex flex-col gap-2">
-        {lobbyState?.players && lobbyState.players.length > 0 && (
-          lobbyState.players.map((player: Player, index: number) => (
-            !player.isMod && 
-            <PlayerStats key={index} {...player} />
-          ))
-        )}
-        
+        {lobbyState?.players &&
+          lobbyState.players.length > 0 &&
+          lobbyState.players.map(
+            (player: Player, index: number) =>
+              !player.isMod && <PlayerStats key={index} {...player} />
+          )}
       </div>
-      <Button onClick={startGame} disabled={!isModerator}>Spiel starten</Button>
+      <Button onClick={startGame} disabled={!isModerator}>
+        Spiel starten
+      </Button>
     </div>
   );
 }

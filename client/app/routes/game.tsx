@@ -1,33 +1,64 @@
 import { questions } from "data/questions";
 import { use, useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
-import { useGame } from "~/context/gameContext";
-import type { Player, Question } from "~/models/game.model";
+import { Drawer, DrawerContent, DrawerTrigger } from "~/components/ui/drawer";
+import { Progress } from "~/components/ui/progress";
+import type { Game, Player, Question } from "~/models/game.model";
+import socket from "~/socket";
 
 export default function Game() {
-  const { lobbyState, setLobbyState } = useGame();
-  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(
-    lobbyState?.players?.[0] || null
-  );
+  const { state } = useLocation();
+  const { moderatorId } = (state as { moderatorId: string }) || {};
+  const [lobbyState, setLobbyState] = useState<Game>();
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>();
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(
     questions[Math.floor(Math.random() * questions.length)] || null
   );
-  const [timeLeft, setTimeLeft] = useState<number>(lobbyState?.settings.roundTime || 180);
+  const [timeLeft, setTimeLeft] = useState<number>(
+    lobbyState?.settings.roundTime || 180
+  );
   const [votingPhase, setVotingPhase] = useState<boolean>(false);
   const [usedQuestions, setUsedQuestions] = useState<number[]>([]);
-  const [gameId, setGameId] = useState<string>("000000");
+  const [gameId, setGameId] = useState<string>("");
+  const [isModerator, setIsModerator] = useState(false);
 
   let params = useParams();
   useEffect(() => {
+    let userId = socket.id;
+    if (moderatorId === userId) {
+      setIsModerator(true);
+    }
     if (params.gameId) {
       setGameId(params.gameId);
     }
   }, []);
 
-  const playerCount = lobbyState?.players?.length || 0;
-  const isModerator = localStorage.getItem("isModerator") === "true";
+  useEffect(() => {
+    if (!gameId) return;
+
+    socket.emit("get_game_state", { lobbyId: gameId });
+
+    const listener = (gameState: Game) => {
+      console.log("Received game state:", gameState);
+      setLobbyState(gameState);
+    };
+
+    socket.on("receive_game_state", listener);
+
+    setCurrentPlayer(lobbyState?.players?.[0] || null);
+
+    return () => {
+      socket.off("receive_game_state", listener);
+    };
+  }, [gameId]);
+
+  useEffect(() => {
+    setCurrentPlayer(lobbyState?.players?.[0] || null);
+    console.log("currentplayer", currentPlayer);
+    console.log("lobbyState", lobbyState);
+  }, [lobbyState]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -36,26 +67,50 @@ export default function Game() {
     }, 1000);
   }, [timeLeft]);
 
+  useEffect(() => {
+    socket.on("receive_game_state", (gameState: Game) => {
+      console.log("Received game state:", gameState);
+      setLobbyState(gameState);
+    });
+  }, [socket]);
+
+  const playerCount = lobbyState?.players?.length || 0;
+
   const handleNextQuestion = () => {
     chooseNextPlayer();
     chooseNextQuestion();
   };
 
-  const handleVotingPhase = (player: Player) => {
-    if (!lobbyState) return;
-    setLobbyState({
-      ...lobbyState,
-      players: lobbyState.players
-        ? lobbyState.players.map((p) =>
-            p.id === player.id ? { ...p, lives: p.lives - 1 } : p
-          )
-        : [],
+
+  // Tdoo: Move the vote counting to backend
+  let playerIdsVoted: string[] = [];
+  const endVoting = () => {
+    const counts: Record<string, number> = {};
+    let votedPlayer: string | null = null;
+    let maxVotes = 0;
+
+    playerIdsVoted.forEach((playerId) => {
+      counts[playerId] = (counts[playerId] || 0) + 1;
+      if (counts[playerId] > maxVotes) {
+        maxVotes = counts[playerId];
+        votedPlayer = playerId;
+      }
     });
-    setVotingPhase(false);
-    setTimeLeft(lobbyState.settings.roundTime || 180);
-    chooseNextQuestion();
-    chooseNextPlayer();
+
+    console.log("Player with most votes:", votedPlayer, "Votes:", maxVotes);
+
+    socket.emit("damage_player", {lobbyid: gameId, targetId: votedPlayer})
+    playerIdsVoted = [];
+  }
+
+  const castVote = (targetId: string) => {
+    playerIdsVoted.push(targetId);
+    socket.emit("cast_vote", { lobbyId: gameId, targetId });
   };
+
+  const nextRound = () => {
+    socket.emit("next_round", { lobbyId: gameId });
+  }
 
   const chooseNextPlayer = () => {
     const playerIndex =
@@ -78,8 +133,7 @@ export default function Game() {
       nextQuestoinIndex = Math.floor(Math.random() * questions.length);
     }
     setUsedQuestions([...usedQuestions, nextQuestoinIndex]);
-    const nextQuestion = questions[nextQuestoinIndex] || null;
-    setCurrentQuestion(nextQuestion);
+    setCurrentQuestion( questions[nextQuestoinIndex] || null);
   };
 
   return (
@@ -93,15 +147,71 @@ export default function Game() {
                 <PlayerStats key={index} {...player} />
               ))}
           </div>
-          <p>Timer: {timeLeft}</p>
-          <div className="flex flex-col gap-2 my-4">
-            <p>
-              <span className="font-bold">{currentPlayer.name}</span>,{" "}
-              {currentQuestion.question}
-            </p>
+          <p className="text-2xl">Timer: {timeLeft}</p>
+          <div>
+            <Drawer>
+              <DrawerTrigger asChild>
+                <Button disabled={timeLeft > 0}>Öffne Voting</Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2">
+                    <p>Wähle einen Spieler aus:</p>
+                    {lobbyState?.players &&
+                      lobbyState.players.length > 0 &&
+                      lobbyState.players.map(
+                        (player: Player, index: number) => (
+                          <Button
+                            key={index}
+                            onClick={() => {
+                              castVote(player.id);
+                            }}
+                          >
+                            {player.name}
+                          </Button>
+                        )
+                      )}
+                  </div>
+                  <div>
+                    <p>Ergebnisse:</p>
+                    {lobbyState?.players &&
+                      lobbyState.players.length > 0 &&
+                      lobbyState.players.map(
+                        (player: Player, index: number) => (
+                          <div key={index} className="flex flex-row gap-2">
+                            <p>{player.name}</p>
+                            <p>
+                              {
+                                Object.values(lobbyState.votes || {}).filter(
+                                  (vote) => vote === player.id
+                                ).length
+                              }
+                            </p>
+                            <Progress
+                              value={
+                                (Object.values(lobbyState.votes || {}).filter(
+                                  (vote) => vote === player.id
+                                ).length /
+                                  playerCount) *
+                                100
+                              }
+                            />
+                          </div>
+                        )
+                      )}
+                  </div>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
           {isModerator ? (
             <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2 my-4">
+                <p>
+                  <span className="font-bold">{currentPlayer.name}</span>,{" "}
+                  {currentQuestion.question}
+                </p>
+              </div>
               <div>
                 <p>
                   <span className="font-bold">Antwort:</span>{" "}
@@ -112,15 +222,16 @@ export default function Game() {
                 <Button
                   disabled={timeLeft <= 0}
                   onClick={() => {
-                    const player = lobbyState?.players?.find((p) => p.id === 1);
                     handleNextQuestion();
                   }}
                 >
                   Nächse Frage
                 </Button>
+                <Button onClick={endVoting}>
+                  Beende Voting
+                </Button>
                 <Button
-                  disabled={timeLeft > 0}
-                  onClick={() => setVotingPhase(true)}
+                  onClick={nextRound}
                 >
                   Nächste Runde
                 </Button>
