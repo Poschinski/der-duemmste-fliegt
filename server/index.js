@@ -7,8 +7,6 @@ const gameManager = require("./gameManager");
 
 app.use(cors());
 
-const lobbies = {};
-
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -57,11 +55,15 @@ io.on("connection", (socket) => {
     });
 
     socket.on("update_game_state", (data) => {
-      socket.to(data.room).emit("receive_game_state", data);
+      io.to(data.room).emit("receive_game_state", data);
     });
   
     socket.on("update_player_data", (data) => {
-      socket.to(data.room).emit("receive_player_data", data);
+      io.to(data.room).emit("receive_player_data", data);
+    });
+
+    socket.on("navigate", ({ lobbyId }) => {
+      io.to(lobbyId).emit("navigate");
     });
 });
 
