@@ -65,6 +65,13 @@ io.on("connection", (socket) => {
     socket.on("navigate", ({ lobbyId }) => {
       io.to(lobbyId).emit("navigate");
     });
+
+    socket.on("start_timer", ({ lobbyId, seconds }) => {
+      setInterval(() => {
+        io.to(lobbyId).emit("timer", seconds);
+        seconds--;
+      }, 1000);
+    });
 });
 
 server.listen(3001, () => {

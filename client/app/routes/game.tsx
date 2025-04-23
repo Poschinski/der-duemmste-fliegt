@@ -19,7 +19,6 @@ export default function Game() {
   const [timeLeft, setTimeLeft] = useState<number>(
     lobbyState?.settings.roundTime || 180
   );
-  const [votingPhase, setVotingPhase] = useState<boolean>(false);
   const [usedQuestions, setUsedQuestions] = useState<number[]>([]);
   const [gameId, setGameId] = useState<string>("");
   const [isModerator, setIsModerator] = useState(false);
@@ -61,17 +60,14 @@ export default function Game() {
   }, [lobbyState]);
 
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    setTimeout(() => {
-      setTimeLeft(timeLeft - 1);
-    }, 1000);
-  }, [timeLeft]);
-
-  useEffect(() => {
     socket.on("receive_game_state", (gameState: Game) => {
       console.log("Received game state:", gameState);
       setLobbyState(gameState);
     });
+    
+    socket.on("timer", (time: number) => {
+      setTimeLeft(time);
+    })
   }, [socket]);
 
   const playerCount = lobbyState?.players?.length || 0;
@@ -81,36 +77,35 @@ export default function Game() {
     chooseNextQuestion();
   };
 
-
-  // Tdoo: Move the vote counting to backend
-  let playerIdsVoted: string[] = [];
   const endVoting = () => {
-    const counts: Record<string, number> = {};
-    let votedPlayer: string | null = null;
-    let maxVotes = 0;
+    if (!lobbyState?.votes) return;
+    const votes = lobbyState?.votes;
+    const countMap: Record<string, number> = {};
+    for (const playerId of Object.values(votes)) {
+      countMap[playerId] = (countMap[playerId] || 0) + 1;
+    }
 
-    playerIdsVoted.forEach((playerId) => {
-      counts[playerId] = (counts[playerId] || 0) + 1;
-      if (counts[playerId] > maxVotes) {
-        maxVotes = counts[playerId];
-        votedPlayer = playerId;
+    let mostFrequentPlayerId = null;
+    let maxCount = 0;
+
+    for (const [playerId, count] of Object.entries(countMap)) {
+      if (count > maxCount) {
+        mostFrequentPlayerId = playerId;
+        maxCount = count;
       }
-    });
+    }
 
-    console.log("Player with most votes:", votedPlayer, "Votes:", maxVotes);
-
-    socket.emit("damage_player", {lobbyid: gameId, targetId: votedPlayer})
-    playerIdsVoted = [];
-  }
+    socket.emit("damage_player", { lobbyid: gameId, targetId: mostFrequentPlayerId });
+  };
 
   const castVote = (targetId: string) => {
-    playerIdsVoted.push(targetId);
     socket.emit("cast_vote", { lobbyId: gameId, targetId });
   };
 
   const nextRound = () => {
+    socket.emit("start_timer", { lobbyId: gameId, seconds: lobbyState?.settings.roundTime });
     socket.emit("next_round", { lobbyId: gameId });
-  }
+  };
 
   const chooseNextPlayer = () => {
     const playerIndex =
@@ -133,7 +128,7 @@ export default function Game() {
       nextQuestoinIndex = Math.floor(Math.random() * questions.length);
     }
     setUsedQuestions([...usedQuestions, nextQuestoinIndex]);
-    setCurrentQuestion( questions[nextQuestoinIndex] || null);
+    setCurrentQuestion(questions[nextQuestoinIndex] || null);
   };
 
   return (
@@ -227,14 +222,8 @@ export default function Game() {
                 >
                   Nächse Frage
                 </Button>
-                <Button onClick={endVoting}>
-                  Beende Voting
-                </Button>
-                <Button
-                  onClick={nextRound}
-                >
-                  Nächste Runde
-                </Button>
+                <Button onClick={endVoting}>Beende Voting</Button>
+                <Button onClick={nextRound}>{lobbyState?.currentRound == 1 ? "Starte Runde" : "Nächste Runde"}</Button>
               </div>
             </div>
           ) : (
