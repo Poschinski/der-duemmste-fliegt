@@ -57,7 +57,7 @@ function applyDamage(lobbyId, playerId, amount = 1) {
   if (!player) return false;
 
   player.lives = Math.max(0, player.lives - amount);
-  return player.lives;
+  return lobby.player.lives;
 }
 
 function getGameState(lobbyId) {

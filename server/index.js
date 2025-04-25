@@ -63,11 +63,16 @@ io.on("connection", (socket) => {
     });
 
     socket.on("navigate", ({ lobbyId }) => {
-      io.to(lobbyId).emit("navigate");
+      console.log("navigating")
+      io.to(lobbyId).emit("navigate_to");
     });
 
     socket.on("start_timer", ({ lobbyId, seconds }) => {
-      setInterval(() => {
+      console.log("started time for lobby " + lobbyId)
+      timer = setInterval(() => {
+        if (seconds <= 0) {
+          clearInterval(timer);
+        }
         io.to(lobbyId).emit("timer", seconds);
         seconds--;
       }, 1000);

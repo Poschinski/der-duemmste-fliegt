@@ -53,23 +53,18 @@ export function StartGame() {
       setLobbyState(gameState);
     });
 
-    socket.on("navigate", () => {
-      if (isModerator) return;
-      navigate(`/game/${gameId}`);
+    socket.on("navigate_to", () => {
+      console.log("navigated To: /game/" + params.gameId )
+      navigate(`/game/${params.gameId}` , {state: {moderatorId}});
     });
-  }),
-    [socket, settings];
+  },[socket, settings]);
 
   const handleSettingsChange = () => {
     socket.emit("change_lobby_settings", { lobbyId: gameId, settings });
   };
 
   const startGame = () => {
-    if (isModerator) {
-      navigate(`/game/${gameId}`, { state: { moderatorId } });
-    } else {
-      socket.emit("navigate", { lobbyId: gameId });
-    }
+    socket.emit("navigate", { lobbyId: gameId });
   };
 
   return (

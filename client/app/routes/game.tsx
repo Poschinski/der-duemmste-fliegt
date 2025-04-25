@@ -94,6 +94,7 @@ export default function Game() {
         maxCount = count;
       }
     }
+    console.log("Most frequent player ID:", mostFrequentPlayerId);
 
     socket.emit("damage_player", { lobbyid: gameId, targetId: mostFrequentPlayerId });
   };
@@ -155,7 +156,7 @@ export default function Game() {
                     {lobbyState?.players &&
                       lobbyState.players.length > 0 &&
                       lobbyState.players.map(
-                        (player: Player, index: number) => (
+                        (player: Player, index: number) => !player.isMod && (
                           <Button
                             key={index}
                             onClick={() => {
@@ -172,7 +173,7 @@ export default function Game() {
                     {lobbyState?.players &&
                       lobbyState.players.length > 0 &&
                       lobbyState.players.map(
-                        (player: Player, index: number) => (
+                        (player: Player, index: number) => !player.isMod && (
                           <div key={index} className="flex flex-row gap-2">
                             <p>{player.name}</p>
                             <p>
@@ -206,8 +207,6 @@ export default function Game() {
                   <span className="font-bold">{currentPlayer.name}</span>,{" "}
                   {currentQuestion.question}
                 </p>
-              </div>
-              <div>
                 <p>
                   <span className="font-bold">Antwort:</span>{" "}
                   {currentQuestion.answer}
