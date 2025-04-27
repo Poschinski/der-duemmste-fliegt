@@ -4,8 +4,9 @@ import { StartGame } from "~/startGame/startGame";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { useNavigate } from "react-router";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import socket from "~/socket";
+import initSocketSession from "~/socketSession";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,17 +22,25 @@ export default function Home() {
   const navigate = useNavigate();
   const [gameId, setGameId] = useState<string>("");
 
+  useEffect(() => {
+    sessionStorage.clear();
+    if (socket.connected) {
+      socket.disconnect();
+    }
+  }, []);
+
   const startGame = () => {
-    let moderatorId = socket.id;
     let tempGameId: number[] = [];
     for (let i = 0; i < 6; i++) {
       tempGameId.push(Math.floor(Math.random() * 10));
     }
     const newGameId = tempGameId.join("");
 
-    socket.emit("join_lobby", {lobbyId: newGameId, name: "Moderator", isMod: true});
+    initSocketSession(gameId, true, `Moderator-${Math.random().toString(36).substring(2, 8)}`);
 
-    navigate(`/lobby/${newGameId}`, { state: { moderatorId: moderatorId } });
+    socket.emit("create_lobby", {lobbyId: newGameId});
+
+    navigate(`/lobby/${newGameId}`, { state: { isModerator: true } });
   };
 
   return (

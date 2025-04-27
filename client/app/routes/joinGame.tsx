@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import socket from "~/socket";
+import initSocketSession from "~/socketSession";
 
 export default function JoinGame() {
   const navigate = useNavigate();
@@ -18,11 +19,14 @@ export default function JoinGame() {
   }, []);
 
   const joinGame = () => {
-    if (name.length < 3) {
-      alert("Bitte gib einen Namen mit mindestens 3 Zeichen ein!");
+    if (name.length < 3 || name.length > 30) {
+      alert("3 - 30 Zeichen du Eumel!");
       return;
     }
-    socket.emit("join_lobby", {lobbyId: gameId, name, isMod:false});
+
+    initSocketSession(gameId, false, name);
+
+    socket.emit("join_lobby", { lobbyId: gameId });
     navigate(`/lobby/${gameId}`);
   }
 

@@ -10,7 +10,7 @@ function createLobby(lobbyId, settings = {}) {
         roundTime: settings.roundTime || 180,
       },
       players: [],
-      currentRound: 1,
+      currentRound: 0,
       votes: {}
     };
     return true;
@@ -22,6 +22,11 @@ function updateLobbySettings(lobbyId, settings) {
   const lobby = lobbies[lobbyId];
   if (!lobby) return false;
   lobby.settings = { ...lobby.settings, ...settings };
+  if (settings.maxLives && lobby.players.length > 0) {
+    lobby.players.forEach(player => {
+      player.lives = settings.maxLives;
+    });
+  }
   return true;
 }
 
@@ -35,7 +40,6 @@ function joinLobby(lobbyId, player) {
       id: player.id,
       name: player.name,
       lives: lobby.settings.maxLives,
-      isMod: player.isMod || false
     });
   }
 

@@ -7,10 +7,11 @@ import { Drawer, DrawerContent, DrawerTrigger } from "~/components/ui/drawer";
 import { Progress } from "~/components/ui/progress";
 import type { Game, Player, Question } from "~/models/game.model";
 import socket from "~/socket";
+import initSocketSession from "~/socketSession";
 
 export default function Game() {
-  const { state } = useLocation();
-  const { moderatorId } = (state as { moderatorId: string }) || {};
+  // const { state } = useLocation();
+  // const { moderatorId } = (state as { moderatorId: string }) || {};
   const [lobbyState, setLobbyState] = useState<Game>();
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>();
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(
@@ -25,10 +26,13 @@ export default function Game() {
 
   let params = useParams();
   useEffect(() => {
-    let userId = socket.id;
-    if (moderatorId === userId) {
-      setIsModerator(true);
+    if (!socket.connected) {
+      initSocketSession(params.gameId || "000000")
     }
+    socket.on("session", ({ isMod }) => {
+      console.log("Is Mod", isMod);
+      setIsModerator(isMod);
+    });
     if (params.gameId) {
       setGameId(params.gameId);
     }

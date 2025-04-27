@@ -10,10 +10,6 @@ export const GameContext = createContext<GameContextType>({lobbyState: {settings
 
 export function GameProvider({children}: {children: React.ReactNode}) {
     const [lobbyState, setLobbyState] = useState<Game | null>({ settings:{ roundTime: 180, maxLives: 3}}); 
-    useEffect(() => {
-        console.log(lobbyState);
-    }
-    , [lobbyState])
     return (
         <GameContext.Provider value={{lobbyState, setLobbyState}}>
             {children}
