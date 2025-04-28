@@ -26,7 +26,7 @@ export default function JoinGame() {
 
     initSocketSession(gameId, false, name);
 
-    socket.emit("join_lobby", { lobbyId: gameId });
+    socket.emit("join_lobby", { lobbyID: gameId });
     navigate(`/lobby/${gameId}`);
   }
 

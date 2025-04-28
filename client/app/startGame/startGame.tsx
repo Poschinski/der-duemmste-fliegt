@@ -21,57 +21,49 @@ export function StartGame() {
   const params = useParams();
 
   useEffect(() => {
-    if (!socket.connected) {
-      console.log("Socket not connected, initializing session...");
-      initSocketSession(params.gameId || "000000")
+    console.log("Seite geladen");
+
+    if (!params.gameId) {
+      console.error("Kein GameID Parameter vorhanden!");
+      return;
     }
-    socket.on("session", ({ isMod }) => {
-      console.log("Is Mod", isMod);
+
+    if (!socket.connected) {
+      console.log("Socket nicht verbunden, initialisiere Session...");
+      initSocketSession(params.gameId);
+    }
+
+    const onSession = ({ isMod }: { isMod: boolean }) => {
+      console.log("Session erhalten, isMod:", isMod);
       setIsModerator(isMod);
-    });
-    socket.on("receive_game_state", ( gameState ) => {
-      console.log("Received game state:", gameState);
-      setLobbyState(gameState);
-    })
-    return () => {
-      socket.off("receive_game_state");
-      socket.off("session");
     };
-  } , []);
 
-  useEffect(() => {
-    if (!params.gameId) return;
-
-    socket.emit("get_game_state", { lobbyId: params.gameId });
-
-    const listener = (gameState: Game) => {
-      console.log("Received game state:", gameState);
+    const onGameState = (gameState: Game) => {
+      console.log("Spielstatus empfangen:", gameState);
       setLobbyState(gameState);
     };
 
-    socket.once("receive_game_state", listener);
-
-  }, [params.gameId]);
-
-  useEffect(() => {
-    socket.on("receive_game_state", (gameState: Game) => {
-      console.log("Received game state:", gameState);
-      setLobbyState(gameState);
-    });
-
-    socket.on("navigate_to", () => {
-      console.log("navigated To: /game/" + params.gameId )
+    const onNavigateTo = () => {
+      console.log("Navigiere zu: /game/" + params.gameId);
       navigate(`/game/${params.gameId}`);
-    });
+    };
+
+    socket.on("session", onSession);
+    socket.on("receive_game_state", onGameState);
+    socket.on("navigate_to", onNavigateTo);
+
+    socket.emit("get_game_state"); // **KEIN lobbyID mehr nötig**
 
     return () => {
-      socket.off("receive_game_state");
-      socket.off("navigate_to");
+      socket.off("session", onSession);
+      socket.off("receive_game_state", onGameState);
+      socket.off("navigate_to", onNavigateTo);
     };
-  },[socket]);
+  }, [params.gameId, navigate]);
 
   const startGame = () => {
-    socket.emit("navigate", { lobbyId: params.gameId });
+    console.log("sende navigate an socket")
+    socket.emit("navigate");
   };
 
   return (
@@ -94,7 +86,7 @@ export function StartGame() {
             onChange={(e) => {
               const updatedSettings = { ...settings, roundTime: Number(e.target.value) };
               setSettings(updatedSettings);
-              socket.emit("change_lobby_settings", { lobbyId: params.gameId, settings: updatedSettings });
+              socket.emit("change_lobby_settings", { lobbyID: params.gameId, settings: updatedSettings });
             }}
           />
           <Label htmlFor="playerLives">Leben pro Spieler</Label>
@@ -108,7 +100,7 @@ export function StartGame() {
             onChange={(e) => {
               const updatedSettings = { ...settings, maxLives: Number(e.target.value) };
               setSettings(updatedSettings);
-              socket.emit("change_lobby_settings", { lobbyId: params.gameId, settings: updatedSettings });
+              socket.emit("change_lobby_settings", { lobbyID: params.gameId, settings: updatedSettings });
             }}
           />
         </div>
@@ -140,7 +132,7 @@ export function StartGame() {
       </div>) : (
         <p>Es sind noch keine Spieler beigetreten.</p>
       )}
-      <Button onClick={startGame} disabled={!isModerator}>
+      <Button onClick={() => startGame()} disabled={!isModerator}>
         Spiel starten
       </Button>
     </div>

@@ -5,7 +5,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const gameManager = require("./gameManager");
 const { InMemorySessionStore } = require("./sessionStore");
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 const sessionStore = new InMemorySessionStore();
 
@@ -13,7 +13,7 @@ app.use(cors());
 
 const server = http.createServer(app);
 
-const randomId = () => crypto.randomBytes(8).toString("hex")
+const randomId = () => crypto.randomBytes(8).toString("hex");
 
 const io = new Server(server, {
   cors: {
@@ -24,117 +24,183 @@ const io = new Server(server, {
 
 io.use(async (socket, next) => {
   const sessionID = socket.handshake.auth.sessionID;
+
   if (sessionID) {
     const session = await sessionStore.findSession(sessionID);
-    console.log(`Session ID: ${session}`);
     if (session) {
       socket.sessionID = sessionID;
       socket.username = session.username;
       socket.isMod = session.isMod;
-      socket.lobbyID = session.lobbyID;
-      console.log(`User ${session.username} reconnected with session ID: ${socket.sessionID}`);
+      socket.lobbyID = session.lobbyID || null;
       return next();
     }
   }
+
   const username = socket.handshake.auth.username;
-  if (!username) {
-    return next(new Error("invalid username"));
-  }
   const isMod = socket.handshake.auth.isMod;
-  if (isMod === undefined) {
-    return next(new Error("invalid isMod value"));
+
+  if (!username || isMod === undefined) {
+    return next(new Error("Invalid authentication data"));
   }
-  const lobbyID = socket.handshake.auth.lobbyID;
+
   socket.sessionID = randomId();
   socket.username = username;
   socket.isMod = isMod;
-  socket.lobbyID = lobbyID;
-  console.log(`User ${username} connected with session ID: ${socket.sessionID}`);
+  socket.lobbyID = socket.handshake.auth.lobbyID || null;
+
   next();
 });
 
 io.on("connection", (socket) => {
-    console.log(`User Connected: ${socket.id}`);
+  console.log(`User Connected: ${socket.id}`);
+
+  // Speichere die Session
+  sessionStore.saveSession(socket.sessionID, {
+    username: socket.username,
+    isMod: socket.isMod,
+    lobbyID: socket.lobbyID,
+  });
+
+  socket.emit("session", {
+    sessionID: socket.sessionID,
+    username: socket.username,
+    isMod: socket.isMod,
+  });
+
+  if (socket.lobbyID) {
+    socket.join(socket.lobbyID);
+    console.log(`User ${socket.username} wurde automatisch der Lobby ${socket.lobbyID} hinzugefügt.`);
+    io.to(socket.lobbyID).emit("receive_game_state", gameManager.getGameState(socket.lobbyID));
+  }
+
+  socket.on("create_lobby", ({ lobbyID }) => {
+    socket.join(lobbyID);
+    gameManager.createLobby(lobbyID);
+    console.log(`Lobby ${lobbyID} created by ${socket.username}`);
+
+    // Session aktualisieren
+    sessionStore.saveSession(socket.sessionID, {
+      username: socket.username,
+      isMod: socket.isMod,
+      lobbyID,
+    });
+
+    socket.emit("lobby_created", { lobbyID });
+  });
+
+  socket.on("join_lobby", ({ lobbyID }) => {
+    console.log(`User ${socket.username} joining lobby ${lobbyID}`);
+
+    // Alle bisherigen Räume verlassen (außer privater Raum socket.id)
+    for (const room of socket.rooms) {
+      if (room !== socket.id) {
+        socket.leave(room);
+      }
+    }
+
+    socket.join(lobbyID);
 
     sessionStore.saveSession(socket.sessionID, {
       username: socket.username,
       isMod: socket.isMod,
-      lobbyID: socket.lobbyID,
+      lobbyID,
     });
 
-    socket.emit("session", {
-      sessionID: socket.sessionID,
-      username: socket.username,
-      isMod: socket.isMod,
+    gameManager.joinLobby(lobbyID, {
+      id: socket.sessionID,
+      name: socket.username,
     });
 
-    socket.join(socket.lobbyID)
-    console.log(`lobby ${socket.lobbyID}`);
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
 
-    socket.on("create_lobby", ({ lobbyID }) => {
-      gameManager.createLobby(lobbyID);
-      // socket.join(lobbyID);
-      socket.emit("lobby_created", { lobbyID });
-    });
-  
-    socket.on("join_lobby", ({ lobbyID }) => {
-      console.log(`User ${socket.username} joined lobby ${lobbyID}`);
-      gameManager.joinLobby(lobbyID, { id: socket.sessionID, name: socket.username } );
-  
-      // socket.join(lobbyID);
-  
-      io.to(lobbyID).emit("receive_game_state", gameManager.getGameState(lobbyID));
-    });
+  socket.on("change_lobby_settings", ({ lobbyID, settings }) => {
+    gameManager.updateLobbySettings(lobbyID, settings);
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
 
-    socket.on("change_lobby_settings", ({ lobbyID, settings }) => {
-      gameManager.updateLobbySettings(lobbyID, settings);
-      io.to(lobbyID).emit("receive_game_state", gameManager.getGameState(lobbyID));
-    });
-  
-    socket.on("cast_vote", ({ lobbyID, targetId }) => {
-      gameManager.castVote(lobbyID, socket.sessionID, targetId);
-      io.to(lobbyID).emit("receive_game_state", gameManager.getGameState(lobbyID));
-    });
-  
-    socket.on("damage_player", ({ lobbyID, targetId }) => {
-      gameManager.applyDamage(lobbyID, targetId);
-      io.to(lobbyID).emit("receive_game_state", gameManager.getGameState(lobbyID));
-    });
-  
-    socket.on("next_round", ({ lobbyID }) => {
-      gameManager.advanceRound(lobbyID);
-      io.to(lobbyID).emit("receive_game_state", gameManager.getGameState(lobbyID));
-    });
+  socket.on("cast_vote", ({ lobbyID, targetId }) => {
+    gameManager.castVote(lobbyID, socket.sessionID, targetId);
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
 
-    socket.on("get_game_state", ({ lobbyID }) => {
-      io.to(lobbyID).emit("receive_game_state", gameManager.getGameState(lobbyID));
-    });
+  socket.on("damage_player", ({ lobbyID, targetId }) => {
+    gameManager.applyDamage(lobbyID, targetId);
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
 
-    socket.on("update_game_state", (data) => {
-      io.to(data.room).emit("receive_game_state", data);
-    });
-  
-    socket.on("update_player_data", (data) => {
-      io.to(data.room).emit("receive_player_data", data);
-    });
+  socket.on("next_round", () => {
+    const lobbyID = getLobbyID(socket);
+  if (!lobbyID) {
+    console.error(`Socket ${socket.id} hat keine Lobby-ID.`);
+    return;
+  }
+    gameManager.advanceRound(lobbyID);
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
 
-    socket.on("navigate", ({ lobbyID }) => {
-      console.log("navigating")
+  socket.on("get_game_state", () => {
+    const lobbyID = getLobbyID(socket);
+    if (!lobbyID) {
+      console.error(`Socket ${socket.id} hat keine Lobby-ID.`);
+      return;
+    }
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
+
+  socket.on("update_game_state", (data) => {
+    io.to(data.room).emit("receive_game_state", data);
+  });
+
+  socket.on("update_player_data", (data) => {
+    io.to(data.room).emit("receive_player_data", data);
+  });
+
+  socket.on("navigate", () => {
+    const lobbyID = getLobbyID(socket);
+    if (lobbyID) {
+      console.log(`Navigating in lobby ${lobbyID}`);
       io.to(lobbyID).emit("navigate_to");
-    });
+    }
+  });
 
-    socket.on("start_timer", ({ lobbyID, seconds }) => {
-      console.log("started time for lobby " + lobbyID)
-      timer = setInterval(() => {
-        if (seconds <= 0) {
-          clearInterval(timer);
-        }
-        io.to(lobbyID).emit("timer", seconds);
-        seconds--;
-      }, 1000);
-    });
+  socket.on("start_timer", ({ lobbyID, seconds }) => {
+    console.log(`Started timer for lobby ${lobbyID}`);
+
+    let timer = setInterval(() => {
+      if (seconds <= 0) {
+        clearInterval(timer);
+      }
+      io.to(lobbyID).emit("timer", seconds);
+      seconds--;
+    }, 1000);
+  });
 });
 
+// Helper-Funktion, um die aktuelle Lobby eines Sockets zu holen
+function getLobbyID(socket) {
+  const rooms = Array.from(socket.rooms).filter((room) => room !== socket.id);
+  return rooms.length > 0 ? rooms[0] : null;
+}
+
 server.listen(3001, () => {
-  console.log("SERVER IS RUNNING");
+  console.log("SERVER IS RUNNING ON PORT 3001");
 });

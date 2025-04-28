@@ -36,9 +36,11 @@ export default function Home() {
     }
     const newGameId = tempGameId.join("");
 
-    initSocketSession(gameId, true, `Moderator-${Math.random().toString(36).substring(2, 8)}`);
+    initSocketSession(newGameId, true, `Moderator-${Math.random().toString(36).substring(2, 8)}`);
 
-    socket.emit("create_lobby", {lobbyId: newGameId});
+    console.log("New game ID:", newGameId);
+
+    socket.emit("create_lobby", {lobbyID: newGameId});
 
     navigate(`/lobby/${newGameId}`, { state: { isModerator: true } });
   };

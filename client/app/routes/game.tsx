@@ -41,7 +41,7 @@ export default function Game() {
   useEffect(() => {
     if (!gameId) return;
 
-    socket.emit("get_game_state", { lobbyId: gameId });
+    socket.emit("get_game_state", { lobbyID: gameId });
 
     const listener = (gameState: Game) => {
       console.log("Received game state:", gameState);
@@ -104,12 +104,12 @@ export default function Game() {
   };
 
   const castVote = (targetId: string) => {
-    socket.emit("cast_vote", { lobbyId: gameId, targetId });
+    socket.emit("cast_vote", { lobbyID: gameId, targetId });
   };
 
   const nextRound = () => {
-    socket.emit("start_timer", { lobbyId: gameId, seconds: lobbyState?.settings.roundTime });
-    socket.emit("next_round", { lobbyId: gameId });
+    socket.emit("start_timer", { lobbyID: gameId, seconds: lobbyState?.settings.roundTime });
+    socket.emit("next_round", { lobbyID: gameId });
   };
 
   const chooseNextPlayer = () => {
