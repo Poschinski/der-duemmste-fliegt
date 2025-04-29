@@ -9,13 +9,19 @@ export type Game = {
     players?: Player[];
     settings: Settings;
     currentRound?: number;
+    currentPhase?: "lobby" | "inRound" | "voting"
     votes?: VoteMap
+    questionLog?: QuestionLog[];
 }
 
 type VoteMap = {
     [voterSocketId: string]: string;
 }
 
+export type QuestionLog = {
+    questionId: number;
+    answerFromPlayer: string;
+}
 
 export type Settings = {
     roundTime: number;

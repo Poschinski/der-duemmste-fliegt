@@ -11,7 +11,9 @@ function createLobby(lobbyId, settings = {}) {
       },
       players: [],
       currentRound: 0,
-      votes: {}
+      currentPhase: "lobby",
+      votes: {},
+      questionLog: [],
     };
     return true;
   }
@@ -46,6 +48,20 @@ function joinLobby(lobbyId, player) {
   return true;
 }
 
+function logQuestion(lobbyId, questionId, answer) {
+  const lobby = lobbies[lobbyId];
+  if (!lobby) return false;
+  lobby.questionLog.push({ questionId, answer });
+  return true;
+}
+
+function setVotingPhase(lobbyId) {
+  const lobby = lobbies[lobbyId];
+  if (!lobby) return false;
+  lobby.currentPhase = "voting";
+  return true;
+}
+
 function castVote(lobbyId, voterId, targetId) {
   const lobby = lobbies[lobbyId];
   if (!lobby) return false;
@@ -61,7 +77,7 @@ function applyDamage(lobbyId, playerId, amount = 1) {
   if (!player) return false;
 
   player.lives = Math.max(0, player.lives - amount);
-  return lobby.player.lives;
+  return player.lives;
 }
 
 function getGameState(lobbyId) {
@@ -79,6 +95,8 @@ function advanceRound(lobbyId) {
   const lobby = lobbies[lobbyId];
   if (!lobby) return false;
   lobby.currentRound += 1;
+  lobby.currentPhase = "inRound"
+  lobby.questionLog = [];
   resetVotes(lobbyId);
   return lobby.currentRound;
 }
@@ -92,6 +110,8 @@ function removePlayer(lobbyId, socketId) {
 module.exports = {
   createLobby,
   joinLobby,
+  logQuestion,
+  setVotingPhase,
   castVote,
   applyDamage,
   getGameState,

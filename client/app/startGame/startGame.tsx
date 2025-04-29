@@ -122,7 +122,7 @@ export function StartGame() {
         <p>Spieler:</p>
       </div>
       {lobbyState?.players && lobbyState.players.length > 0 ? (
-      <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {lobbyState?.players &&
           lobbyState.players.length > 0 &&
           lobbyState.players.map(

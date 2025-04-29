@@ -1,82 +1,102 @@
+import { DialogTitle } from "@radix-ui/react-dialog";
 import { questions } from "data/questions";
 import { use, useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
-import { Drawer, DrawerContent, DrawerTrigger } from "~/components/ui/drawer";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "~/components/ui/drawer";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { Progress } from "~/components/ui/progress";
 import type { Game, Player, Question } from "~/models/game.model";
 import socket from "~/socket";
 import initSocketSession from "~/socketSession";
 
 export default function Game() {
-  // const { state } = useLocation();
-  // const { moderatorId } = (state as { moderatorId: string }) || {};
   const [lobbyState, setLobbyState] = useState<Game>();
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>();
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(
     questions[Math.floor(Math.random() * questions.length)] || null
   );
-  const [timeLeft, setTimeLeft] = useState<number>(
-    lobbyState?.settings.roundTime || 180
-  );
+  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [usedQuestions, setUsedQuestions] = useState<number[]>([]);
   const [gameId, setGameId] = useState<string>("");
   const [isModerator, setIsModerator] = useState(false);
+  const [votingOpen, setVotingOpen] = useState(false);
+  const [playerAnswer, setPlayerAnswer] = useState<string>("");
 
   let params = useParams();
   useEffect(() => {
+    if (!params.gameId) return;
+
     if (!socket.connected) {
-      initSocketSession(params.gameId || "000000")
+      initSocketSession(params.gameId);
     }
-    socket.on("session", ({ isMod }) => {
+
+    const onSession = ({ isMod }: { isMod: boolean }) => {
       console.log("Is Mod", isMod);
       setIsModerator(isMod);
-    });
-    if (params.gameId) {
-      setGameId(params.gameId);
-    }
-  }, []);
+    };
 
-  useEffect(() => {
-    if (!gameId) return;
-
-    socket.emit("get_game_state", { lobbyID: gameId });
-
-    const listener = (gameState: Game) => {
+    const onGameState = (gameState: Game) => {
       console.log("Received game state:", gameState);
       setLobbyState(gameState);
     };
 
-    socket.on("receive_game_state", listener);
+    const onTimer = (time: number) => {
+      setTimeLeft(time);
+    };
 
-    setCurrentPlayer(lobbyState?.players?.[0] || null);
+    socket.on("session", onSession);
+    socket.on("receive_game_state", onGameState);
+    socket.on("timer", onTimer);
+
+    // Direkt nach Verbindung den GameState und die Session anfordern
+    socket.emit("get_game_state", { lobbyID: params.gameId });
+    socket.emit("get_session_data", { lobbyID: params.gameId });
+
+    setGameId(params.gameId);
 
     return () => {
-      socket.off("receive_game_state", listener);
+      socket.off("session", onSession);
+      socket.off("receive_game_state", onGameState);
+      socket.off("timer", onTimer);
     };
-  }, [gameId]);
+  }, [params.gameId]);
 
   useEffect(() => {
-    setCurrentPlayer(lobbyState?.players?.[0] || null);
-    console.log("currentplayer", currentPlayer);
-    console.log("lobbyState", lobbyState);
-  }, [lobbyState]);
+    if (!lobbyState?.players || lobbyState.players.length === 0) {
+      setCurrentPlayer(null);
+      return;
+    }
 
-  useEffect(() => {
-    socket.on("receive_game_state", (gameState: Game) => {
-      console.log("Received game state:", gameState);
-      setLobbyState(gameState);
+    setCurrentPlayer((prev) => {
+      if (!lobbyState.players) return null;
+      if (prev && lobbyState.players.find((p) => p.id === prev.id)) {
+        return prev; // Falls der Spieler noch existiert
+      }
+      return lobbyState.players[0]; // Sonst auf ersten Spieler wechseln
     });
-    
-    socket.on("timer", (time: number) => {
-      setTimeLeft(time);
-    })
-  }, [socket]);
+
+    if (lobbyState?.currentPhase === "voting") setVotingOpen(true);
+    if (lobbyState?.currentPhase !== "voting") setVotingOpen(false);
+
+    setTimeLeft(lobbyState?.settings.roundTime);
+  }, [lobbyState]);
 
   const playerCount = lobbyState?.players?.length || 0;
 
   const handleNextQuestion = () => {
+    socket.emit("log_question", {questionId: currentQuestion})
     chooseNextPlayer();
     chooseNextQuestion();
   };
@@ -100,7 +120,10 @@ export default function Game() {
     }
     console.log("Most frequent player ID:", mostFrequentPlayerId);
 
-    socket.emit("damage_player", { lobbyid: gameId, targetId: mostFrequentPlayerId });
+    socket.emit("damage_player", {
+      lobbyID: gameId,
+      targetId: mostFrequentPlayerId,
+    });
   };
 
   const castVote = (targetId: string) => {
@@ -108,7 +131,10 @@ export default function Game() {
   };
 
   const nextRound = () => {
-    socket.emit("start_timer", { lobbyID: gameId, seconds: lobbyState?.settings.roundTime });
+    socket.emit("start_timer", {
+      lobbyID: gameId,
+      seconds: lobbyState?.settings.roundTime,
+    });
     socket.emit("next_round", { lobbyID: gameId });
   };
 
@@ -140,84 +166,101 @@ export default function Game() {
     <div className="flex justify-center mt-32">
       {currentPlayer && currentQuestion ? (
         <div className="flex flex-col gap-4 w-3xl justify-center">
-          <div>
+          <p className="text-2xl">Timer: {timeLeft}</p>
+          <div className="grid grid-cols-2 gap-2">
             {lobbyState?.players &&
               lobbyState.players.length > 0 &&
               lobbyState.players.map((player: Player, index: number) => (
                 <PlayerStats key={index} {...player} />
               ))}
           </div>
-          <p className="text-2xl">Timer: {timeLeft}</p>
           <div>
-            <Drawer>
+            <Drawer open={votingOpen}>
               <DrawerTrigger asChild>
-                <Button disabled={timeLeft > 0}>Öffne Voting</Button>
+                <Button disabled={!votingOpen}>Öffne Voting</Button>
               </DrawerTrigger>
               <DrawerContent>
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-col gap-2">
-                    <p>Wähle einen Spieler aus:</p>
-                    {lobbyState?.players &&
-                      lobbyState.players.length > 0 &&
-                      lobbyState.players.map(
-                        (player: Player, index: number) => !player.isMod && (
-                          <Button
-                            key={index}
-                            onClick={() => {
-                              castVote(player.id);
-                            }}
-                          >
-                            {player.name}
-                          </Button>
-                        )
-                      )}
+              <div className="mx-auto w-full max-w-1/2 mb-10 max-h-1/2 overflow-y-auto">
+                <DrawerHeader>
+                  <DrawerTitle>Voting</DrawerTitle>
+                  <DrawerDescription>
+                    Vote für den Spieler mit der dümmste Antwort.
+                  </DrawerDescription>
+                </DrawerHeader>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                      {lobbyState?.players &&
+                        lobbyState.players.length > 0 &&
+                        lobbyState.players.map(
+                          (player: Player, index: number) =>
+                            !player.isMod && player.lives > 0 &&(
+                              <Button
+                                key={index}
+                                disabled={isModerator}
+                                onClick={() => {
+                                  castVote(player.id);
+                                }}
+                              >
+                                {player.name}
+                              </Button>
+                            )
+                        )}
                   </div>
                   <div>
-                    <p>Ergebnisse:</p>
+                    <p className="mb-2">Ergebnisse:</p>
                     {lobbyState?.players &&
                       lobbyState.players.length > 0 &&
                       lobbyState.players.map(
-                        (player: Player, index: number) => !player.isMod && (
-                          <div key={index} className="flex flex-row gap-2">
-                            <p>{player.name}</p>
-                            <p>
-                              {
-                                Object.values(lobbyState.votes || {}).filter(
-                                  (vote) => vote === player.id
-                                ).length
-                              }
-                            </p>
-                            <Progress
-                              value={
-                                (Object.values(lobbyState.votes || {}).filter(
-                                  (vote) => vote === player.id
-                                ).length /
-                                  playerCount) *
-                                100
-                              }
-                            />
-                          </div>
-                        )
+                        (player: Player, index: number) =>
+                          !player.isMod && player.lives > 0 && (
+                            <div key={index} className="grid grid-cols-2 gap-2">
+                              <p>{player.name}</p>
+                              <Progress className="mt-2"
+                                value={
+                                  (Object.values(lobbyState.votes || {}).filter(
+                                    (vote) => vote === player.id
+                                  ).length /
+                                    Object.values(lobbyState.votes || {})
+                                      .length) *
+                                  100
+                                }
+                                />
+                            </div>
+                          )
                       )}
                   </div>
+                  <DrawerFooter>
+                    <DrawerClose>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setVotingOpen(false);
+                        }}
+                      >
+                        Schließen
+                      </Button>
+                    </DrawerClose>
+                  </DrawerFooter>
                 </div>
               </DrawerContent>
             </Drawer>
           </div>
           {isModerator ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
               <div className="flex flex-col gap-2 my-4">
-                <p>
+                <p className="text-lg">
                   <span className="font-bold">{currentPlayer.name}</span>,{" "}
                   {currentQuestion.question}
                 </p>
-                <p>
+                <p className="text-lg">
                   <span className="font-bold">Antwort:</span>{" "}
                   {currentQuestion.answer}
                 </p>
+                <Label htmlFor="playerAnswer">Antwort des Spielers</Label>
+                <Input id="playerAnswer" type="text" placeholder="Antwort des Spielers" onChange={(e) => setPlayerAnswer(e.target.value)}/>
               </div>
               <div className="flex justify-between gap-4">
                 <Button
+                  className="grow"
                   disabled={timeLeft <= 0}
                   onClick={() => {
                     handleNextQuestion();
@@ -225,13 +268,16 @@ export default function Game() {
                 >
                   Nächse Frage
                 </Button>
-                <Button onClick={endVoting}>Beende Voting</Button>
-                <Button onClick={nextRound}>{lobbyState?.currentRound == 1 ? "Starte Runde" : "Nächste Runde"}</Button>
+                <Button className="grow" onClick={endVoting}>Beende Voting</Button>
+                <Button className="grow" onClick={nextRound}>
+                  {lobbyState?.currentRound == 0
+                    ? "Starte Runde"
+                    : "Nächste Runde"}
+                </Button>
               </div>
             </div>
           ) : (
             <div>
-              <p>Hallo Spieler</p>
             </div>
           )}
         </div>

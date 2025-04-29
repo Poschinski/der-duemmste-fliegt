@@ -69,8 +69,13 @@ io.on("connection", (socket) => {
 
   if (socket.lobbyID) {
     socket.join(socket.lobbyID);
-    console.log(`User ${socket.username} wurde automatisch der Lobby ${socket.lobbyID} hinzugefügt.`);
-    io.to(socket.lobbyID).emit("receive_game_state", gameManager.getGameState(socket.lobbyID));
+    console.log(
+      `User ${socket.username} wurde automatisch der Lobby ${socket.lobbyID} hinzugefügt.`
+    );
+    io.to(socket.lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(socket.lobbyID)
+    );
   }
 
   socket.on("create_lobby", ({ lobbyID }) => {
@@ -125,6 +130,15 @@ io.on("connection", (socket) => {
     );
   });
 
+  socket.on("log_question", ({ questionId, answer }) => {
+    const lobbyID = getLobbyID(socket);
+    gameManager.logQuestion(lobbyID, questionId, answer)
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
+
   socket.on("cast_vote", ({ lobbyID, targetId }) => {
     gameManager.castVote(lobbyID, socket.sessionID, targetId);
     io.to(lobbyID).emit(
@@ -143,10 +157,10 @@ io.on("connection", (socket) => {
 
   socket.on("next_round", () => {
     const lobbyID = getLobbyID(socket);
-  if (!lobbyID) {
-    console.error(`Socket ${socket.id} hat keine Lobby-ID.`);
-    return;
-  }
+    if (!lobbyID) {
+      console.error(`Socket ${socket.id} hat keine Lobby-ID.`);
+      return;
+    }
     gameManager.advanceRound(lobbyID);
     io.to(lobbyID).emit(
       "receive_game_state",
@@ -164,6 +178,11 @@ io.on("connection", (socket) => {
       "receive_game_state",
       gameManager.getGameState(lobbyID)
     );
+    socket.emit("session", {
+      sessionID: socket.sessionID,
+      username: socket.username,
+      isMod: socket.isMod,
+    });
   });
 
   socket.on("update_game_state", (data) => {
@@ -187,6 +206,11 @@ io.on("connection", (socket) => {
 
     let timer = setInterval(() => {
       if (seconds <= 0) {
+        gameManager.setVotingPhase(lobbyID);
+        io.to(lobbyID).emit(
+          "receive_game_state",
+          gameManager.getGameState(lobbyID)
+        );
         clearInterval(timer);
       }
       io.to(lobbyID).emit("timer", seconds);
