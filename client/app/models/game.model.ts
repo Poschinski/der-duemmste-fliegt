@@ -12,6 +12,7 @@ export type Game = {
     currentPhase?: "lobby" | "inRound" | "voting"
     votes?: VoteMap
     questionLog?: QuestionLog[];
+    usedQuestions?: [];
 }
 
 type VoteMap = {
@@ -20,7 +21,8 @@ type VoteMap = {
 
 export type QuestionLog = {
     questionId: number;
-    answerFromPlayer: string;
+    playerName: string;
+    playerAnswer?: string;
 }
 
 export type Settings = {

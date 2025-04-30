@@ -91,6 +91,13 @@ function resetVotes(lobbyId) {
   return true;
 }
 
+function logQuestion(lobbyId, questionId, playerName, playerAnswer) {
+  const lobby = lobbies[lobbyId];
+  if (!lobby) return false;
+  lobby.questionLog.push({ questionId, playerName, playerAnswer });
+  return true;
+}
+
 function advanceRound(lobbyId) {
   const lobby = lobbies[lobbyId];
   if (!lobby) return false;
@@ -116,6 +123,7 @@ module.exports = {
   applyDamage,
   getGameState,
   resetVotes,
+  logQuestion,
   advanceRound,
   removePlayer,
   updateLobbySettings

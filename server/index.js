@@ -155,6 +155,19 @@ io.on("connection", (socket) => {
     );
   });
 
+  socket.on("log_question", ({ questionId, playerName, playerAnswer }) => {
+    const lobbyID = getLobbyID(socket);
+    if (!lobbyID) {
+      console.error(`Socket ${socket.id} hat keine Lobby-ID.`);
+      return;
+    }
+    gameManager.logQuestion(lobbyID, questionId, playerName, playerAnswer);
+    io.to(lobbyID).emit(
+      "receive_game_state",
+      gameManager.getGameState(lobbyID)
+    );
+  });
+
   socket.on("next_round", () => {
     const lobbyID = getLobbyID(socket);
     if (!lobbyID) {
