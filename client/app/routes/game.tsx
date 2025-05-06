@@ -68,6 +68,8 @@ export default function Game() {
     setCurrentQuestion(questions[randomIndex]);
     setCurrentQuestionIndex(randomIndex);
 
+    setTimeLeft(lobbyState?.settings.roundTime || 0);
+
     return () => {
       socket.off("session", onSession);
       socket.off("receive_game_state", onGameState);
@@ -92,7 +94,6 @@ export default function Game() {
     if (lobbyState?.currentPhase === "voting") setVotingOpen(true);
     if (lobbyState?.currentPhase !== "voting") setVotingOpen(false);
 
-    setTimeLeft(lobbyState?.settings.roundTime);
   }, [lobbyState]);
 
   const playerCount = lobbyState?.players?.length || 0;
@@ -163,6 +164,7 @@ export default function Game() {
       playerName: currentPlayer?.name,
       playerAnswer,
     });
+    setPlayerAnswer("");
     let nextQuestionIndex = Math.floor(Math.random() * questions.length);
     if (!lobbyState?.questionLog) {
       setCurrentQuestionIndex(nextQuestionIndex);
@@ -195,7 +197,7 @@ export default function Game() {
           <div>
             <Drawer open={votingOpen}>
               <DrawerTrigger asChild>
-                <Button disabled={lobbyState?.currentPhase !== 'voting'}>Öffne Voting</Button>
+                <Button disabled={lobbyState?.currentPhase !== 'voting'} onClick={() => setVotingOpen(true)}>Öffne Voting</Button>
               </DrawerTrigger>
               <DrawerContent>
                 <div className="mx-auto w-full max-w-2/3 mb-10 max-h-1/2 overflow-y-auto">
@@ -205,7 +207,7 @@ export default function Game() {
                       Vote für den Spieler mit der dümmste Antwort.
                     </DrawerDescription>
                   </DrawerHeader>
-                  <div className="flex flex-col gap-5">
+                  <div className="grid grid-cols-2 gap-5">
                     <div>
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         {lobbyState?.players &&
@@ -258,18 +260,24 @@ export default function Game() {
                     </div>
                     <div>
                       <p className="mb-2">Antworten der letzen Runde:</p>
-                      <div className="flex flex-col gap-2 h-36 overflow-y-auto">
+                      <div className="flex flex-col gap-2 overflow-y-auto h-56">
                         {lobbyState?.questionLog &&
                           lobbyState.questionLog.length > 0 &&
                           lobbyState.questionLog.map(
                           (question: QuestionLog, index: number) => {
                             const questionData = questions[question.questionId];
                             if (!questionData) return null;
+                            if (question.playerAnswer === "") return null;
                             return (
                             <div key={index} className="flex flex-col gap-1 border-1">
-                              <p>{questionData.question}</p>
-                              <p>Korrekte Antwort: {questionData.answer}</p>
-                              <p>Antwort von {question.playerName}: {question.playerAnswer}</p>
+                              <p className="font-semibold">{questionData.question}</p>
+                              <div className="flex gap-1"><p className="font-semibold">Korrekte Antwort:</p> <p>{questionData.answer}</p></div>
+                              <div className="flex gap-1"><p className="font-semibold">Antwort von</p>
+                               <div className="flex">
+                                 <p className="font-semibold bg-amber-300">{question.playerName}</p>
+                                 <p>:</p>
+                               </div>
+                               <p>{question.playerAnswer}</p></div>
                             </div>
                             );
                           }
@@ -326,7 +334,7 @@ export default function Game() {
                 <Button className="grow" onClick={endVoting}>
                   Beende Voting
                 </Button>
-                <Button className="grow" onClick={nextRound}>
+                <Button className="grow" onClick={nextRound} disabled={lobbyState?.currentPhase == 'inRound'}>
                   {lobbyState?.currentRound == 0
                     ? "Starte Runde"
                     : "Nächste Runde"}

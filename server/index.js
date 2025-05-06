@@ -130,15 +130,6 @@ io.on("connection", (socket) => {
     );
   });
 
-  socket.on("log_question", ({ questionId, answer }) => {
-    const lobbyID = getLobbyID(socket);
-    gameManager.logQuestion(lobbyID, questionId, answer)
-    io.to(lobbyID).emit(
-      "receive_game_state",
-      gameManager.getGameState(lobbyID)
-    );
-  });
-
   socket.on("cast_vote", ({ lobbyID, targetId }) => {
     gameManager.castVote(lobbyID, socket.sessionID, targetId);
     io.to(lobbyID).emit(
