@@ -229,7 +229,11 @@ export default function Game() {
                           )}
                       </div>
                       <div>
-                        <p className="mb-2">Ergebnisse:</p>
+                        <div className="flex justify-between">
+                          <p className="mb-2">Ergebnisse:</p>
+                          <p>Votes: {Object.values(lobbyState?.votes || {})
+                                            .length}/{lobbyState?.players?.filter(player => player.lives > 0).length}</p>
+                        </div>
                         {lobbyState?.players &&
                           lobbyState.players.length > 0 &&
                           lobbyState.players.map(
