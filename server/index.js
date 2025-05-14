@@ -94,7 +94,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join_lobby", ({ lobbyID }) => {
-    console.log(`User ${socket.username} joining lobby ${lobbyID}`);
 
     // Alle bisherigen Räume verlassen (außer privater Raum socket.id)
     for (const room of socket.rooms) {
@@ -200,13 +199,11 @@ io.on("connection", (socket) => {
   socket.on("navigate", () => {
     const lobbyID = getLobbyID(socket);
     if (lobbyID) {
-      console.log(`Navigating in lobby ${lobbyID}`);
       io.to(lobbyID).emit("navigate_to");
     }
   });
 
   socket.on("start_timer", ({ lobbyID, seconds }) => {
-    console.log(`Started timer for lobby ${lobbyID}`);
 
     let timer = setInterval(() => {
       if (seconds <= 0) {
