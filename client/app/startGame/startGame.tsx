@@ -1,6 +1,6 @@
 import { Label } from "@radix-ui/react-label";
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -9,8 +9,6 @@ import socket from "~/socket";
 import initSocketSession from "~/socketSession";
 
 export function StartGame() {
-  // const { state } = useLocation();
-  // const { isModerator } = (state as { isModerator: boolean }) || {};
   const [ isModerator, setIsModerator ] = useState<boolean>(false);
   const [lobbyState, setLobbyState] = useState<Game>();
   const [settings, setSettings] = useState<Settings>({
@@ -21,20 +19,16 @@ export function StartGame() {
   const params = useParams();
 
   useEffect(() => {
-    console.log("Seite geladen");
-
     if (!params.gameId) {
       console.error("Kein GameID Parameter vorhanden!");
       return;
     }
 
     if (!socket.connected) {
-      console.log("Socket nicht verbunden, initialisiere Session...");
       initSocketSession(params.gameId);
     }
 
     const onSession = ({ isMod }: { isMod: boolean }) => {
-      console.log("Session erhalten, isMod:", isMod);
       setIsModerator(isMod);
     };
 
@@ -52,7 +46,7 @@ export function StartGame() {
     socket.on("receive_game_state", onGameState);
     socket.on("navigate_to", onNavigateTo);
 
-    socket.emit("get_game_state"); // **KEIN lobbyID mehr nötig**
+    socket.emit("get_game_state");
 
     return () => {
       socket.off("session", onSession);
@@ -70,8 +64,7 @@ export function StartGame() {
     <div className="flex flex-col gap-4 w-3xl justify-center">
       <h1 className="text-4xl bg-amber-300 mb-2">Der Dümmste fliegt!</h1>
       <p>
-        Gib hier die Namen der Mitspieler ein und lege die die Leben pro Spieler
-        und die Zeit pro Runde fest.
+        Lege hier die Leben pro Spieler und die Zeit pro Runde fest.
       </p>
       <div className="flex flex-row justify-between gap-10">
         <div className="grow gap-1 flex flex-col">
