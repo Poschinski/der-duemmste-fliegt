@@ -17,9 +17,10 @@ const randomId = () => crypto.randomBytes(8).toString("hex");
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:3000", "https://ddf.poschinski.de"],
+    origin: "*",
     methods: ["GET", "POST"],
     transports: ["websocket", "polling"],
+    credentials: true,
   },
   allowEIO3: true,
 });
