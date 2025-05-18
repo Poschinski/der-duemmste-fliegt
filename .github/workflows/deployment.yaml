@@ -1,0 +1,53 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+      
+      - name: Login to Dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        run: |
+          docker build -t poschinski/ddf-client:latest client/.
+          docker push poschinski/ddf-client:latest
+          docker build -t poschinski/ddf-server:latest server/.
+          docker push poschinski/ddf-server:latest
+  
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build_and_push
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            docker stop ddf-client || true
+            docker stop ddf-server || true
+            docker rm ddf-client || true
+            docker rm ddf-server || true
+            docker pull poschinski/ddf-client:latest
+            docker run -d \
+            --name ddf-client \
+            -p 127.0.0.1:3010:3000 \
+            poschinski/ddf-client:latest
+            docker pull poschinski/ddf-server:latest
+            docker run -d \
+            --name ddf-server \
+            -p 127.0.0.1:3011:3001 \
+            poschinski/ddf-server:latest

@@ -17,8 +17,9 @@ const randomId = () => crypto.randomBytes(8).toString("hex");
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:3000", "https://ddf.poschinski.de"],
     methods: ["GET", "POST"],
+    transports: ["websocket", "polling"],
   },
 });
 
@@ -94,7 +95,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join_lobby", ({ lobbyID }) => {
-    console.log(`User ${socket.username} joining lobby ${lobbyID}`);
 
     // Alle bisherigen Räume verlassen (außer privater Raum socket.id)
     for (const room of socket.rooms) {
@@ -200,13 +200,11 @@ io.on("connection", (socket) => {
   socket.on("navigate", () => {
     const lobbyID = getLobbyID(socket);
     if (lobbyID) {
-      console.log(`Navigating in lobby ${lobbyID}`);
       io.to(lobbyID).emit("navigate_to");
     }
   });
 
   socket.on("start_timer", ({ lobbyID, seconds }) => {
-    console.log(`Started timer for lobby ${lobbyID}`);
 
     let timer = setInterval(() => {
       if (seconds <= 0) {

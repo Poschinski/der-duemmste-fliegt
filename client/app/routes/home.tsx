@@ -1,10 +1,8 @@
 import { Button } from "~/components/ui/button";
 import type { Route } from "./+types/home";
-import { StartGame } from "~/startGame/startGame";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import { useNavigate } from "react-router";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import socket from "~/socket";
 import initSocketSession from "~/socketSession";
 
@@ -37,8 +35,6 @@ export default function Home() {
     const newGameId = tempGameId.join("");
 
     initSocketSession(newGameId, true, `Moderator-${Math.random().toString(36).substring(2, 8)}`);
-
-    console.log("New game ID:", newGameId);
 
     socket.emit("create_lobby", {lobbyID: newGameId});
 

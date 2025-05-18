@@ -1,7 +1,6 @@
-import { DialogTitle } from "@radix-ui/react-dialog";
 import { questions } from "data/questions";
-import { use, useEffect, useState } from "react";
-import { useLocation, useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import {
@@ -41,7 +40,6 @@ export default function Game() {
     }
 
     const onSession = ({ isMod }: { isMod: boolean }) => {
-      console.log("Is Mod", isMod);
       setIsModerator(isMod);
     };
 
@@ -121,7 +119,6 @@ export default function Game() {
         maxCount = count;
       }
     }
-    console.log("Most frequent player ID:", mostFrequentPlayerId);
 
     socket.emit("damage_player", {
       lobbyID: gameId,
