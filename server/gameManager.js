@@ -48,13 +48,6 @@ function joinLobby(lobbyId, player) {
   return true;
 }
 
-function logQuestion(lobbyId, questionId, answer) {
-  const lobby = lobbies[lobbyId];
-  if (!lobby) return false;
-  lobby.questionLog.push({ questionId, answer });
-  return true;
-}
-
 function setVotingPhase(lobbyId) {
   const lobby = lobbies[lobbyId];
   if (!lobby) return false;
