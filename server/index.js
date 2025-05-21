@@ -57,6 +57,10 @@ io.use(async (socket, next) => {
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
+  socket.on("connect_error", (err) => {
+    console.log(`connect_error due to ${err.message}`);
+  });
+
   // Speichere die Session
   sessionStore.saveSession(socket.sessionID, {
     username: socket.username,
@@ -82,6 +86,9 @@ io.on("connection", (socket) => {
   }
 
   socket.on("create_lobby", ({ lobbyID }) => {
+    console.log(
+      `Lobby ${lobbyID} wurde von ${socket.username} erstellt.`
+    );
     socket.join(lobbyID);
     gameManager.createLobby(lobbyID);
     console.log(`Lobby ${lobbyID} created by ${socket.username}`);
@@ -104,6 +111,10 @@ io.on("connection", (socket) => {
         socket.leave(room);
       }
     }
+
+    console.log(
+      `User ${socket.username} joined lobby ${lobbyID}.`
+    );
 
     socket.join(lobbyID);
 
