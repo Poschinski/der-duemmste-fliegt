@@ -9,7 +9,7 @@ const initSocketSession = (lobbyID: string, isModerator?: boolean, name?: string
   } else {
     socket.auth = {
       username: name,
-      isMod: !!isModerator,
+      isMod: isModerator,
       lobbyID: lobbyID,
     };
   }
