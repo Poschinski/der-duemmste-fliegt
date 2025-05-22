@@ -28,9 +28,13 @@ const io = new Server(server, {
 io.use(async (socket, next) => {
   const sessionID = socket.handshake.auth.sessionID;
 
+  console.log("Authentication running...");
+
   if (sessionID) {
     const session = await sessionStore.findSession(sessionID);
     if (session) {
+      console.log("Session found, authenticating...");
+      console.log(session);
       socket.sessionID = sessionID;
       socket.username = session.username;
       socket.isMod = session.isMod;
@@ -41,15 +45,15 @@ io.use(async (socket, next) => {
 
   const username = socket.handshake.auth.username;
   const isMod = socket.handshake.auth.isMod;
+  const lobbyID = socket.handshake.auth.lobbyID || null;
 
-  if (!username || isMod === undefined) {
-    return next(new Error("Invalid authentication data"));
-  }
+  console.log("No session found, authenticating with username and isMod...");
+  console.log(`Username: ${username}, isMod: ${isMod}, lobbyID: ${lobbyID}`);
 
   socket.sessionID = randomId();
   socket.username = username;
   socket.isMod = isMod;
-  socket.lobbyID = socket.handshake.auth.lobbyID || null;
+  socket.lobbyID = lobbyID;
 
   next();
 });
