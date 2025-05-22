@@ -24,11 +24,13 @@ export default function JoinGame() {
       return;
     }
 
-    initSocketSession(gameId, false, name);
+    console.log("Verbinde mit Socket... params" +  `${params.gameId || ""}, false, ${name}`);
+    console.log("Verbinde mit Socket... gameId state" +  `${gameId}, false, ${name}`);
+    initSocketSession(params.gameId || "", false, name);
 
     socket.emit("join_lobby", { lobbyID: gameId });
     navigate(`/lobby/${gameId}`);
-  }
+  };
 
   return (
     <div className="flex justify-center mt-16">
