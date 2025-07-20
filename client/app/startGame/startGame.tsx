@@ -4,7 +4,8 @@ import { useNavigate, useParams } from "react-router";
 import { PlayerStats } from "~/components/playerStats";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import type { Game, Player, Settings } from "~/models/game.model";
+import type { Game, Settings } from "~/models/game.model";
+import type { Player } from "~/models/player.model";
 import socket from "~/socket";
 import initSocketSession from "~/socketSession";
 

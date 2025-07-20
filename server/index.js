@@ -28,13 +28,9 @@ const io = new Server(server, {
 io.use(async (socket, next) => {
   const sessionID = socket.handshake.auth.sessionID;
 
-  console.log("Authentication running...");
-
   if (sessionID) {
     const session = await sessionStore.findSession(sessionID);
     if (session) {
-      console.log("Session found, authenticating...");
-      console.log(session);
       socket.sessionID = sessionID;
       socket.username = session.username;
       socket.isMod = session.isMod;
