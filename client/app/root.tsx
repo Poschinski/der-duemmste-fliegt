@@ -9,7 +9,9 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
-import { GameProvider } from "./context/gameContext";
+import { SocketProvider } from "./context/SocketContext";
+import { Toaster } from "./components/ui/sonner";
+import { LobbyProvider } from "./context/LobbyContext";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -26,7 +28,7 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="de">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -44,9 +46,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <GameProvider>
-      <Outlet />
-    </GameProvider>
+    <SocketProvider>
+      <LobbyProvider>
+        <Outlet />
+        <Toaster />
+      </LobbyProvider>
+    </SocketProvider>
   );
 }
 
