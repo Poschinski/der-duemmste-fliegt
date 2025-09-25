@@ -1,4 +1,4 @@
-import { useGame } from "~/context/gameContext";
+import { useGame } from "~/context/GameContext";
 import { Button } from "./ui/button";
 import { X } from 'lucide-react';
 import type { Player } from "~/models/game.model";

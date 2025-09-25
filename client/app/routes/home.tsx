@@ -7,6 +7,9 @@ import { useNavigate } from "react-router";
 import { use, useEffect, useState } from "react";
 import socket from "~/socket";
 import initSocketSession from "~/socketSession";
+import Balatro from "~/components/Balatro";
+import { useSocket } from "~/context/SocketContext";
+import { toast } from "sonner";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,43 +22,40 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
+  const { socket, connected } = useSocket();
+  const [ gameId, setGameId ] = useState<string>("");
   const navigate = useNavigate();
-  const [gameId, setGameId] = useState<string>("");
 
-  useEffect(() => {
-    sessionStorage.clear();
-    if (socket.connected) {
-      socket.disconnect();
+  const handleCreateLobby = () => {
+    if (!connected) {
+      console.error("Socket not connected");
+      toast.error("Verbindung zum Server fehlgeschlagen. Bitte versuche es später erneut.");
+      return;
     }
-  }, []);
+    socket.emit("createLobby");
 
-  const startGame = () => {
-    let tempGameId: number[] = [];
-    for (let i = 0; i < 6; i++) {
-      tempGameId.push(Math.floor(Math.random() * 10));
-    }
-    const newGameId = tempGameId.join("");
+    socket.once("lobbyCreated", ({ lobbyId, userId }) => {
+      sessionStorage.setItem("userId", userId);
+      navigate(`/lobby/${lobbyId}`, { state: { isModerator: true } });
+    });
 
-    initSocketSession(gameId, true, `Moderator-${Math.random().toString(36).substring(2, 8)}`);
-
-    socket.emit("create_lobby", {lobbyId: newGameId});
-
-    navigate(`/lobby/${newGameId}`, { state: { isModerator: true } });
   };
 
   return (
-    <div className="flex justify-center mt-16">
-      <div className="flex flex-col justify-center w-3xl">
+    <div className="flex justify-center mt-36">
+      <div className="flex flex-col justify-center w-3xl gap-2">
         <h3 className="text-2xl">Wilkommen zu</h3>
         <h1 className="text-4xl bg-amber-300 mb-2">Der Dümmste fliegt!</h1>
-        <p>
-          Erstelle hier ein neues Spiel oder trete einem bestehenden Spiel über
-          einen Einladungscode ein.
-        </p>
-        <p>Als Ersteller bist du automatisch </p>
+        <div>
+          <p>
+            Erstelle hier ein neues Spiel oder trete einem bestehenden Spiel über
+            einen Einladungscode ein.
+          </p>
+          <p>Als Ersteller bist du automatisch der Moderator des Spiels.</p>
+        </div>
         <div className="flex justify-center mt-4 gap-4 flex-col">
           <div>
-            <Button className="w-full" onClick={() => startGame()}>
+            <Button className="w-full cursor-pointer" onClick={() => handleCreateLobby()}>
               Neues Spiel
             </Button>
           </div>
@@ -68,12 +68,16 @@ export default function Home() {
             <Button
               onClick={() => navigate(`/joinGame/${gameId}`)}
               disabled={gameId.length !== 6}
+              className="cursor-pointer"
             >
               Spiel beitreten
             </Button>
           </div>
         </div>
       </div>
+      {/* <div className="absolute inset-0 -z-10">
+        <Balatro isRotate={true} mouseInteraction={false} pixelFilter={700} spinRotation={0.6}/>
+      </div> */}
     </div>
   );
 }

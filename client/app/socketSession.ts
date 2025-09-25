@@ -1,7 +1,11 @@
 import socket from "./socket";
 
-const initSocketSession = (lobbyID: string, isModerator?: boolean, name?: string) => {
-    console.log(lobbyID)
+const initSocketSession = (
+  lobbyID: string,
+  isModerator?: boolean,
+  name?: string
+) => {
+  console.log(lobbyID);
   const sessionID = sessionStorage.getItem("sessionID");
   if (sessionID) {
     socket.auth = { sessionID };
@@ -23,6 +27,6 @@ const initSocketSession = (lobbyID: string, isModerator?: boolean, name?: string
     socket.auth = { sessionID };
     sessionStorage.setItem("sessionID", sessionID);
   });
-};
+}; 
 
 export default initSocketSession;
