@@ -24,7 +24,20 @@ export function registerSocketHandlers(io, socket) {
     const lobby = getLobby(lobbyId);
     if (!lobby) return;
     Object.assign(lobby.settings, settings);
+    if (settings.maxLives !== undefined) {
+      Object.values(lobby.users).forEach((user) => {
+        user.lives = Math.min(settings.maxLives);
+      });
+    }
 
+    io.to(lobbyId).emit("userListUpdated", {
+      users: Object.values(lobby.users).map((u) => ({
+        id: u.id,
+        name: u.name,
+        role: u.role,
+        lives: u.lives,
+      })),
+    });
     io.to(lobbyId).emit("settingsUpdated", { settings: lobby.settings });
   });
 
@@ -75,7 +88,7 @@ export function registerSocketHandlers(io, socket) {
     //   })),
     // });
 
-    socket.emit("lobbyJoined", { lobby });
+    socket.emit("lobbyJoined", { lobby, userId });
 
     // Broadcast Userliste
     io.to(lobbyId).emit("userListUpdated", {
@@ -90,14 +103,26 @@ export function registerSocketHandlers(io, socket) {
 
   socket.on("startLobby", ({ lobbyId }) => {
     const lobby = getLobby(lobbyId);
+    console.log("lobby started: " + lobbyId);
     if (!lobby) return;
 
     lobby.phase = "questions";
 
-    io.to(lobbyId).emit("lobbyStarted", { phase: phase });
+    // io.to(lobbyId).emit("lobbyStarted", { phase: phase });
 
-    io.to(lobbyId).emit("naviate", { to: "game" });
+    io.to(lobbyId).emit("navigateTo", { to: `/game/${lobbyId}` });
   });
+
+  socket.on("startRound", ({ lobbyId }) => {
+    const lobby = getLobby(lobbyId);
+    if (!lobby) return;
+    let seconds = lobby.settings.roundTime;
+    lobby.timer = setTimeout(() => {
+      seconds--;
+      io.to(lobbyId).emit("currentTimer"), { seconds: seconds};
+    }, seconds);
+  });
+
 
   socket.on("loadQuestion", ({ lobbyId, lastUserId }) => {
     const lobby = getLobby(lobbyId);
@@ -114,6 +139,7 @@ export function registerSocketHandlers(io, socket) {
     // An alle Spieler (ohne Antwort)
     io.to(lobbyId).emit("newQuestion", {
       user: user.name,
+      userId: user.id,
       question: question.question
     });
 
@@ -154,8 +180,11 @@ export function registerSocketHandlers(io, socket) {
 
     lobby.votes[voterId] = targetId;
 
-    // optional: Zwischenstand an alle senden
-    io.to(lobbyId).emit("votesUpdated", {
+    const moderator = lobby.users[lobby.moderatorId];
+    if (moderator && moderator.socketId) {
+      io.to(moderator.socketId).emit("newQuestionModerator", question);
+    }
+    io.to(moderator.socketId).emit("votesUpdated", {
       totalVotes: Object.keys(lobby.votes).length,
       voters: Object.keys(lobby.votes),
     });
@@ -182,6 +211,11 @@ export function registerSocketHandlers(io, socket) {
     });
 
     lobby.votes = {};
+  });
+
+  socket.on("getLobby", ({ lobbyId }) => {
+    const lobby = getLobby(lobbyId); 
+    socket.emit("lobbyData", { lobby });
   });
 
 }
