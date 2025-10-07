@@ -12,73 +12,27 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
-import type { Game, Player, Settings } from "~/models/game.model";
-import socket from "~/socket";
-import initSocketSession from "~/socketSession";
+import { useLobby } from "~/context/LobbyContext";
+import { useSocket } from "~/context/SocketContext";
 
 export function StartGame() {
-  // const { state } = useLocation();
-  // const { isModerator } = (state as { isModerator: boolean }) || {};
-  const [isModerator, setIsModerator] = useState<boolean>(false);
-  const [lobbyState, setLobbyState] = useState<Game>();
-  const [settings, setSettings] = useState<Settings>({
-    roundTime: 180,
-    maxLives: 3,
-  });
-  const navigate = useNavigate();
+  const { lobby, userId, lobbyId } = useLobby();
   const params = useParams();
+  const { socket } = useSocket();
 
   useEffect(() => {
-    if (!socket.connected) {
-      console.log("Socket not connected, initializing session...");
-      initSocketSession(params.gameId || "000000");
-    }
-    socket.on("session", ({ isMod }) => {
-      console.log("Is Mod", isMod);
-      setIsModerator(isMod);
+    console.log(lobby);
+  }, [lobby]);
+
+  const handleChange = (field: "maxLives" | "roundTime", value: number) => {
+    socket.emit("changeSettings", {
+      lobbyId: lobby?.id,
+      settings: { [field]: value },
     });
-    socket.on("receive_game_state", (gameState) => {
-      console.log("Received game state:", gameState);
-      setLobbyState(gameState);
-    });
-    return () => {
-      socket.off("receive_game_state");
-      socket.off("session");
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!params.gameId) return;
-
-    socket.emit("get_game_state", { lobbyId: params.gameId });
-
-    const listener = (gameState: Game) => {
-      console.log("Received game state:", gameState);
-      setLobbyState(gameState);
-    };
-
-    socket.once("receive_game_state", listener);
-  }, [params.gameId]);
-
-  useEffect(() => {
-    socket.on("receive_game_state", (gameState: Game) => {
-      console.log("Received game state:", gameState);
-      setLobbyState(gameState);
-    });
-
-    socket.on("navigate_to", () => {
-      console.log("navigated To: /game/" + params.gameId);
-      navigate(`/game/${params.gameId}`);
-    });
-
-    return () => {
-      socket.off("receive_game_state");
-      socket.off("navigate_to");
-    };
-  }, [socket]);
+  };
 
   const startGame = () => {
-    socket.emit("navigate", { lobbyId: params.gameId });
+    socket.emit("startLobby", { lobbyId: lobby?.id });
   };
 
   return (
@@ -100,19 +54,11 @@ export function StartGame() {
                 type="number"
                 placeholder="Zeit pro Runde"
                 min={0}
-                value={lobbyState?.settings.roundTime || 180}
-                disabled={!isModerator}
-                onChange={(e) => {
-                  const updatedSettings = {
-                    ...settings,
-                    roundTime: Number(e.target.value),
-                  };
-                  setSettings(updatedSettings);
-                  socket.emit("change_lobby_settings", {
-                    lobbyId: params.gameId,
-                    settings: updatedSettings,
-                  });
-                }}
+                value={lobby?.settings?.roundTime || 180}
+                disabled={lobby?.moderatorId !== userId}
+                onChange={(e) =>
+                  handleChange("roundTime", Number(e.target.value))
+                }
               />
               <Label htmlFor="playerLives">Leben pro Spieler</Label>
               <Input
@@ -120,19 +66,11 @@ export function StartGame() {
                 type="number"
                 placeholder="Leben pro Spieler"
                 min={0}
-                value={lobbyState?.settings.maxLives || 3}
-                disabled={!isModerator}
-                onChange={(e) => {
-                  const updatedSettings = {
-                    ...settings,
-                    maxLives: Number(e.target.value),
-                  };
-                  setSettings(updatedSettings);
-                  socket.emit("change_lobby_settings", {
-                    lobbyId: params.gameId,
-                    settings: updatedSettings,
-                  });
-                }}
+                value={lobby?.settings?.maxLives || 3}
+                disabled={lobby?.moderatorId !== userId}
+                onChange={(e) =>
+                  handleChange("maxLives", Number(e.target.value))
+                }
               />
             </div>
           </div>
@@ -150,11 +88,7 @@ export function StartGame() {
           <div className="flex items-center gap-2 justify-between">
             <div className="flex items-center gap-2">
               <Label htmlFor="lobbyCode">Lobbycode</Label>
-              <Input
-                id="lobbyCode"
-                value={params.gameId}
-                readOnly
-              />
+              <Input id="lobbyCode" value={params.gameId} readOnly />
               {/* <p>Lobbycode:</p>
               <p>{params.gameId}</p> */}
             </div>
@@ -172,18 +106,18 @@ export function StartGame() {
       <div className="flex flex-col gap-2">
         <p>Spieler:</p>
       </div>
-      {lobbyState?.players && lobbyState.players.length > 0 ? (
+      {lobby?.users && Object.keys(lobby.users).length > 0 ? (
         <div className="flex flex-col gap-2">
-          {lobbyState?.players &&
-            lobbyState.players.length > 0 &&
-            lobbyState.players.map((player: Player, index: number) => (
-              <PlayerStats key={index} {...player} />
+          {lobby?.users && Object.entries(lobby.users)
+            .filter(([_, player]) => player.role !== "moderator")
+            .map(([userId, player]) => (
+              <PlayerStats key={userId} name={player.name || ""} lives={player.lives || 0}/>
             ))}
         </div>
       ) : (
         <p>Es sind noch keine Spieler beigetreten.</p>
       )}
-      <Button onClick={startGame} disabled={!isModerator}>
+      <Button onClick={() => startGame()} disabled={lobby?.moderatorId !== userId}>
         Spiel starten
       </Button>
     </div>
