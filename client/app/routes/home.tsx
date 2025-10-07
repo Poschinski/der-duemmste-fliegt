@@ -10,6 +10,7 @@ import initSocketSession from "~/socketSession";
 import Balatro from "~/components/Balatro";
 import { useSocket } from "~/context/SocketContext";
 import { toast } from "sonner";
+import { useLobby } from "~/context/LobbyContext";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -24,6 +25,7 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
   const { socket, connected } = useSocket();
   const [ gameId, setGameId ] = useState<string>("");
+  const { setLobby, updateLobby, setLobbyId } = useLobby();
   const navigate = useNavigate();
 
   const handleCreateLobby = () => {
@@ -34,9 +36,18 @@ export default function Home() {
     }
     socket.emit("createLobby");
 
-    socket.once("lobbyCreated", ({ lobbyId, userId }) => {
+    socket.once("lobbyCreated", ({ lobbyId, userId, role }) => {
+      setLobbyId(lobbyId);
+      setLobby({ id: lobbyId, moderatorId: userId, users: { [userId]: { id: userId, socketId: socket.id, role } } }, userId, role);
+      // updateLobby({ 
+      //   id: lobbyId, 
+      //   moderatorId: userId, 
+      //   users: { 
+      //     [userId]: { id: userId, socketId: socket.id, role } 
+      //   }
+      // });
       sessionStorage.setItem("userId", userId);
-      navigate(`/lobby/${lobbyId}`, { state: { isModerator: true } });
+      navigate(`/lobby/${lobbyId}`);
     });
 
   };
