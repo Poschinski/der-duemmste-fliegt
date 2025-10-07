@@ -1,18 +1,18 @@
 import type { Player } from "~/models/game.model";
+import type { LobbyUser } from "~/models/lobby.model";
 
 
-export function PlayerStats(player: Player) {
+interface PlayerStatsProps {
+    name: string;
+    lives: number;
+    you?: boolean;
+}
 
+export function PlayerStats({ name, lives, you }: PlayerStatsProps) {
     return (
         <div className="flex border rounded-md p-2">
-            <div className="mr-2">{player.name}:</div>
-            {player.lives === 0 ? <div>💀</div> : (
-                player.lives === 1 ? <div>❤️</div> : (
-                    player.lives === 2 ? <div>❤️❤️</div> : (
-                        player.lives === 3 ? <div>❤️❤️❤️</div> : <div>❤️❤️❤️❤️</div>
-                    )
-                )
-            )}
+            <div>{you ? `${name} (Du)` : name}:</div>
+            <div>{"❤️".repeat(lives) || "💀"}</div>
         </div>
-    )
+    );
 }
