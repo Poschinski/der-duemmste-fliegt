@@ -41,9 +41,15 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       navigate(to);
     });
 
+    socket.on("phaseChanged", ({ phase }) => {
+      setLobbyState((prev) => (prev ? { ...prev, phase } : prev));
+    });
+
     return () => {
       socket.off("settingsUpdated");
       socket.off("userListUpdated");
+      socket.off("navigateTo");
+      socket.off("phaseChanged");
     };
   }, [socket])
 

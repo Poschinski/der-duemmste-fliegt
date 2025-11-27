@@ -26,7 +26,6 @@ export function createLobby(socketId) {
     currentAnswers: [],
     usedQuestions: [],
     votes: [],
-    timer: null
   };
 
   return { lobbyId, moderatorId };
@@ -83,12 +82,42 @@ export function loadQuestion(lobbyId, usedQuestions) {
 export function chooseUser(lobbyId, lastUserId) {
   const lobby = lobbies[lobbyId];
   if (!lobby) return null;
+  if (!lobby.roundRobin) {
+    lobby.roundRobin = {};
+  }
 
   const validPlayers = Object.values(lobby.users).filter(u => u.role === "player" && u.lives > 0);
 
-  validPlayers.sort((a, b) => a.id.localeCompare(b.id));
+  if (validPlayers.length === 0) return null;
 
-  if (!lastUserId) return validPlayers[0];
-  const nextIndex = (validPlayers.indexOf(lastUserId) + 1) % validPlayers.length;
-  return validPlayers[nextIndex];
+  // Initialize roundRobin counts for new players
+  validPlayers.forEach(player => {
+    if (!lobby.roundRobin[player.id]) {
+      lobby.roundRobin[player.id] = 0;
+    }
+  });
+
+  // Find the player with the minimum pick count
+  const minPickCount = Math.min(...Object.values(lobby.roundRobin));
+  const nextPlayer = validPlayers.find(player => lobby.roundRobin[player.id] === minPickCount);
+
+  // Increment the pick count for the chosen player
+  lobby.roundRobin[nextPlayer.id]++;
+
+  // Check if the round should end
+  const allPickedEqually = validPlayers.every(player => lobby.roundRobin[player.id] === minPickCount + 1);
+  if (allPickedEqually) {
+    lobby.roundRobin = {}; // Reset for the next round
+    lobby.phase = "result"; // End the round
+  }
+
+  return nextPlayer;
+
+  // const validPlayers = Object.values(lobby.users).filter(u => u.role === "player" && u.lives > 0);
+
+  // validPlayers.sort((a, b) => a.id.localeCompare(b.id));
+
+  // if (!lastUserId) return validPlayers[0];
+  // const nextIndex = (validPlayers.indexOf(lastUserId) + 1) % validPlayers.length;
+  // return validPlayers[nextIndex];
 }

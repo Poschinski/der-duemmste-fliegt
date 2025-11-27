@@ -106,8 +106,6 @@ export function registerSocketHandlers(io, socket) {
     console.log("lobby started: " + lobbyId);
     if (!lobby) return;
 
-    lobby.phase = "questions";
-
     // io.to(lobbyId).emit("lobbyStarted", { phase: phase });
 
     io.to(lobbyId).emit("navigateTo", { to: `/game/${lobbyId}` });
@@ -116,11 +114,8 @@ export function registerSocketHandlers(io, socket) {
   socket.on("startRound", ({ lobbyId }) => {
     const lobby = getLobby(lobbyId);
     if (!lobby) return;
-    let seconds = lobby.settings.roundTime;
-    lobby.timer = setTimeout(() => {
-      seconds--;
-      io.to(lobbyId).emit("currentTimer"), { seconds: seconds};
-    }, seconds);
+    lobby.phase = "questions";
+    io.to(lobbyId).emit("phaseChanged", { phase: lobby.phase });
   });
 
 
@@ -156,7 +151,7 @@ export function registerSocketHandlers(io, socket) {
 
     lobby.phase = "voting";
     io.to(lobbyId).emit("votingStarted", { phase: phase });
-
+    io.to(lobbyId).emit("phaseChanged", { phase: lobby.phase });
   });
 
   socket.on("castVote", ({ lobbyId, voterId, targetId }) => {

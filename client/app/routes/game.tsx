@@ -13,16 +13,13 @@ export default function Game() {
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>();
   const [currentQuestion, setCurrentQuestion] = useState<string | null>();
   const [currentAnswer, setCurrentAnswer] = useState<string | null>();
-  const [timeLeft, setTimeLeft] = useState<number>(0);
+  // const [timeLeft, setTimeLeft] = useState<number>(0);
   const [gameId, setGameId] = useState<string>("");
   const [isModerator, setIsModerator] = useState(false);
   const { socket } = useSocket();
 
   // const playerCount = lobby?.users? || 0;
-
-  socket.on("currentTimer", ({ seconds }) => {
-    setTimeLeft(seconds);
-  });
+;
 
   const handleNewQuestion = () => {
     socket.emit("loadQuestion", { lobbyId: lobbyId, lastUserId: currentPlayerId });
@@ -34,8 +31,14 @@ export default function Game() {
     });
   }
 
-  const endVoting = () => {
-    socket.emit("endVoting", { lobbyId: lobbyId });
+  const handleVoting = () => {
+    if (lobby?.phase != "voting") {
+      socket.emit("startVoting", { lobbyId: lobbyId });
+      return;
+    } else {
+      socket.emit("endVoting", { lobbyId: lobbyId });
+      return;
+    }
   };
 
   const castVote = (targetId: string) => {
@@ -55,7 +58,7 @@ export default function Game() {
   return (
     <div className="flex justify-center mt-32">
         <div className="flex flex-col gap-4 w-3xl justify-center">
-          <div>
+          <div className="flex flex-col gap-2">
             {lobby?.users &&
               Object.entries(lobby.users)
               .filter(([_, player]) => player.role !== "moderator")
@@ -63,11 +66,10 @@ export default function Game() {
               <PlayerStats key={uId} name={user.name || ""} lives={user.lives || 0} you={user.id == userId} />
               ))}
           </div>
-          <p className="text-2xl">Timer: {timeLeft}</p>
           <div>
             <Drawer>
               <DrawerTrigger asChild>
-                <Button disabled={timeLeft > 0 && lobby?.phase == "voting"}>Öffne Voting</Button>
+                <Button disabled={lobby?.phase != "voting"}>Öffne Voting</Button>
               </DrawerTrigger>
               <DrawerContent>
                 <div className="flex flex-col gap-2">
@@ -119,7 +121,7 @@ export default function Game() {
             </Drawer>
           </div>
           {lobby?.moderatorId == userId ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div>
               <div className="flex flex-col gap-2 my-4">
                 <p>
                   <span className="font-bold">{currentPlayerName}</span>,{" "}
@@ -130,16 +132,15 @@ export default function Game() {
                   {currentAnswer}
                 </p>
               </div>
-              <div className="flex justify-between gap-4">
+              <div className="flex justify-between">
                 <Button
-                  disabled={timeLeft <= 0}
                   onClick={() => {
                     handleNewQuestion();
                   }}
                 >
                   Nächse Frage
                 </Button>
-                <Button onClick={endVoting}>Beende Voting</Button>
+                <Button onClick={handleVoting}>{lobby?.phase == "voting" ? "Beende Voting" : "State Voting"}</Button>
                 <Button onClick={startRound}>Starte Fragerunde</Button>
               </div>
             </div>
@@ -147,15 +148,6 @@ export default function Game() {
             <div>
               <p>Warte bis der Moderator dir eine Frage stellt.</p>
             </div>
-          )}
-        </div>
-        <div>
-          {lobby?.moderatorId == userId ? (
-            <Button onClick={() => handleNewQuestion()}>
-              Lade erste Frage
-            </Button>
-          ) : (
-            <p>Warte bis der Moderator dir eine Frage stellt.</p>
           )}
         </div>
     </div>
